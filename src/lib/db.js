@@ -114,7 +114,11 @@ export const dbAddDoc = d => sync(supabase.from('documents').insert([{
 export const dbDeleteDoc = id => sync(supabase.from('documents').delete().eq('id', id))
 
 // ─── first-run seed ──────────────────────────────────────────
-export async function seedInitialData(projs, tasks, docs) {
+export async function seedInitialData(users, projs, tasks, docs) {
+  if (users.length)
+    await supabase.from('users').upsert(users.map(u => ({
+      id: u.id, name: u.name, email: u.email, password: u.password, role: u.role,
+    })))
   await supabase.from('projects').upsert(projs.map(p => ({
     id: p.id, name: p.name, description: p.desc ?? null,
     start_date: p.start ?? null, end_date: p.end ?? null,

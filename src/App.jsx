@@ -272,7 +272,7 @@ export default function App(){
       if(p.length){setProjs(p);setTasks(t);setDocs(d);}
       else{
         setProjs(INIT_PROJS);setTasks(INIT_TASKS);setDocs(INIT_DOCS);
-        seedInitialData(INIT_PROJS,INIT_TASKS,INIT_DOCS);
+        seedInitialData(INIT_USERS,INIT_PROJS,INIT_TASKS,INIT_DOCS);
       }
     }).catch(()=>{
       setUsers(INIT_USERS);setProjs(INIT_PROJS);setTasks(INIT_TASKS);setDocs(INIT_DOCS);
@@ -286,11 +286,13 @@ export default function App(){
   /* ── 인증 ── */
   function login(){
     dbLogin(lf.email,lf.password).then(u=>{
-      if(u){setMe(u);setPage("dash");setLE("");}
+      if(u){setMe(u);setPage("dash");setLE("");return;}
+      // Supabase에 유저 없으면 로컬 폴백 (첫 접속 등)
+      const local=INIT_USERS.find(x=>x.email===lf.email&&x.password===lf.password);
+      if(local){setMe(local);setPage("dash");setLE("");}
       else setLE("이메일 또는 비밀번호가 올바르지 않습니다.");
     }).catch(()=>{
-      // Supabase 실패 시 로컬 폴백
-      const u=users.find(u=>u.email===lf.email&&u.password===lf.password);
+      const u=INIT_USERS.find(u=>u.email===lf.email&&u.password===lf.password);
       if(u){setMe(u);setPage("dash");setLE("");}
       else setLE("이메일 또는 비밀번호가 올바르지 않습니다.");
     });

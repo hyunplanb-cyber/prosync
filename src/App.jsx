@@ -288,16 +288,20 @@ export default function App(){
   const pd  = docs.filter(d=>d.pid===selP?.id);
   const uN  = id=>id===VACANT_ID?"공석":users.find(u=>u.id===id)?.name??"?";
 
+  /* ── localStorage 유저 캐시 헬퍼 ── */
+  function lsGetUsers(){try{return JSON.parse(localStorage.getItem('ps_users')||'[]');}catch{return[];}}
+  function lsSaveUser(u){const arr=lsGetUsers().filter(x=>x.email!==u.email);localStorage.setItem('ps_users',JSON.stringify([...arr,u]));}
+
   /* ── 인증 ── */
   function login(){
     dbLogin(lf.email,lf.password).then(u=>{
       if(u){setMe(u);setPage("dash");setLE("");return;}
-      // Supabase에 유저 없으면 로컬 폴백 (첫 접속 등)
-      const local=INIT_USERS.find(x=>x.email===lf.email&&x.password===lf.password);
+      // Supabase 없으면 INIT_USERS → localStorage 순으로 폴백
+      const local=[...INIT_USERS,...lsGetUsers()].find(x=>x.email===lf.email&&x.password===lf.password);
       if(local){setMe(local);setPage("dash");setLE("");}
       else setLE("이메일 또는 비밀번호가 올바르지 않습니다.");
     }).catch(()=>{
-      const u=INIT_USERS.find(u=>u.email===lf.email&&u.password===lf.password);
+      const u=[...INIT_USERS,...lsGetUsers()].find(x=>x.email===lf.email&&x.password===lf.password);
       if(u){setMe(u);setPage("dash");setLE("");}
       else setLE("이메일 또는 비밀번호가 올바르지 않습니다.");
     });
@@ -305,17 +309,17 @@ export default function App(){
   function register(){
     if(!rf.name||!rf.email||!rf.password){setRE("모든 항목을 입력해주세요.");return;}
     if(rf.password!==rf.pw2){setRE("비밀번호가 일치하지 않습니다.");return;}
-    if(users.find(u=>u.email===rf.email)){setRE("이미 사용 중인 이메일입니다.");return;}
-    // 로컬 먼저 생성 후 즉시 로그인, Supabase는 백그라운드 동기화
+    const allUsers=[...users,...lsGetUsers()];
+    if(allUsers.find(u=>u.email===rf.email)){setRE("이미 사용 중인 이메일입니다.");return;}
     const tempId=Date.now();
     const newUser={id:tempId,name:rf.name,email:rf.email,password:rf.password,role:"member"};
+    lsSaveUser(newUser); // localStorage에 즉시 저장 (새로고침해도 유지)
     setUsers(prev=>[...prev,newUser]);
-    setMe(newUser);
-    setPage("dash");
+    setMe(newUser);setPage("dash");
     setRF({name:"",email:"",password:"",pw2:""});
     dbRegister(rf.name,rf.email,rf.password).then(u=>{
-      setUsers(prev=>prev.map(x=>x.id===tempId?u:x));
-      setMe(u);
+      lsSaveUser(u);
+      setUsers(prev=>prev.map(x=>x.id===tempId?u:x));setMe(u);
     }).catch(err=>console.warn('[prosync] register sync',err));
   }
   function logout(){setMe(null);setPage("login");setLF({email:"",password:""});}

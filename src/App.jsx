@@ -275,9 +275,9 @@ export default function App(){
     loadAll().then(({users:u,projs:p,tasks:t,docs:d})=>{
       setUsers(u.length?u:INIT_USERS);
       if(p.length){
-        const ovr=lsGetTaskOverrides();
-        const merged=t.map(tk=>ovr[tk.id]??tk);
-        setProjs(p);setTasks(merged);setDocs(d);
+        // localStorage 캐시가 있으면 우선 사용 (Supabase UPDATE 실패 보완)
+        let cached=[];try{cached=JSON.parse(localStorage.getItem('ps_tasks')||'[]');}catch{}
+        setProjs(p);setTasks(cached.length?cached:t);setDocs(d);
       } else{
         setProjs(INIT_PROJS);setTasks(INIT_TASKS);setDocs(INIT_DOCS);
         seedInitialData(INIT_USERS,INIT_PROJS,INIT_TASKS,INIT_DOCS);
@@ -286,6 +286,11 @@ export default function App(){
       setUsers(INIT_USERS);setProjs(INIT_PROJS);setTasks(INIT_TASKS);setDocs(INIT_DOCS);
     }).finally(()=>setLoading(false));
   },[]);
+
+  /* ── tasks 변경 시 localStorage 자동 저장 ── */
+  useEffect(()=>{
+    if(tasks.length)localStorage.setItem('ps_tasks',JSON.stringify(tasks));
+  },[tasks]);
 
   const myP = me?.role==="master"?projs:projs.filter(p=>getMemberIds(p).includes(me?.id));
   const pd  = docs.filter(d=>d.pid===selP?.id);

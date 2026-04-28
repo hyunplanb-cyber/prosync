@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { supabase } from "./lib/supabase.js";
 import {
   loadAll, seedInitialData,
   dbLogin, dbRegister,
@@ -73,7 +74,7 @@ function buildNotionTasks(pid){
 /* ── 초기 데이터 ─────────────────────────────────────────────────── */
 const VACANT_ID=0; // 공석
 const INIT_USERS=[
-  {id:1,name:"김마스터",email:"master@test.com",password:"1234",role:"master"},
+  {id:1,name:"김마스터",email:"hyun.planb@gmail.com",password:"1234",role:"master"},
   {id:2,name:"이디자인",email:"lee@test.com",   password:"1234",role:"member"},
   {id:3,name:"박개발",  email:"park@test.com",  password:"1234",role:"member"},
   {id:4,name:"최기획",  email:"choi@test.com",  password:"1234",role:"member"},
@@ -253,6 +254,8 @@ export default function App(){
   const [np, setNP] = useState({name:"",desc:"",start:"",end:"",members:[],notionUrl:""});
   const [mCfg, setMCfg] = useState({}); // {uid: {role,customRole,tabs}}
   const [lf, setLF] = useState({email:"",password:""});
+  const [pwForm, setPwForm] = useState({cur:"",next:"",next2:""});
+  const [pwErr, setPwErr] = useState("");
   const [le, setLE] = useState("");
   const [rf, setRF] = useState({name:"",email:"",password:"",pw2:""});
   const [re, setRE] = useState("");
@@ -310,6 +313,17 @@ export default function App(){
     });
   }
   function logout(){setMe(null);setPage("login");setLF({email:"",password:""});}
+  function changePassword(){
+    if(!pwForm.cur||!pwForm.next||!pwForm.next2){setPwErr("모든 항목을 입력해주세요.");return;}
+    if(pwForm.cur!==me.password){setPwErr("현재 비밀번호가 올바르지 않습니다.");return;}
+    if(pwForm.next.length<4){setPwErr("새 비밀번호는 4자 이상이어야 합니다.");return;}
+    if(pwForm.next!==pwForm.next2){setPwErr("새 비밀번호가 일치하지 않습니다.");return;}
+    const updated={...me,password:pwForm.next};
+    setMe(updated);
+    setUsers(users.map(u=>u.id===me.id?updated:u));
+    supabase.from('users').update({password:pwForm.next}).eq('id',me.id).then(({error})=>{if(error)console.warn('[prosync] pw update',error);});
+    setPwForm({cur:"",next:"",next2:""});setPwErr("");setModal("myInfo");
+  }
   function openProject(p){
     setSelP(p);
     // 접근 가능한 첫 번째 탭으로
@@ -515,7 +529,7 @@ export default function App(){
           </div>
           <div className="mt-5 pt-5 border-t border-white/10"><p className="text-slate-400 text-xs text-center mb-3">테스트 계정</p>
             <div className="grid grid-cols-2 gap-2">
-              <button onClick={()=>setLF({email:"master@test.com",password:"1234"})} className="text-xs bg-white/5 hover:bg-indigo-500/20 border border-white/10 text-slate-300 hover:text-indigo-300 rounded-xl py-3">👑 마스터</button>
+              <button onClick={()=>setLF({email:"hyun.planb@gmail.com",password:"1234"})} className="text-xs bg-white/5 hover:bg-indigo-500/20 border border-white/10 text-slate-300 hover:text-indigo-300 rounded-xl py-3">👑 마스터</button>
               <button onClick={()=>setLF({email:"choi@test.com",password:"1234"})} className="text-xs bg-white/5 hover:bg-white/10 border border-white/10 text-slate-300 rounded-xl py-3">👤 최기획</button>
             </div>
           </div>
@@ -614,7 +628,21 @@ export default function App(){
       {/* 대시보드 모달들 */}
       {modal==="myInfo"&&<Sheet title="내 정보" onClose={()=>setModal(null)}>
         <div className="flex items-center gap-4 mb-5 p-4 bg-slate-50 rounded-xl"><div className="w-14 h-14 bg-indigo-100 rounded-2xl flex items-center justify-center text-indigo-600 font-extrabold text-xl">{me?.name[0]}</div><div><p className="font-bold text-slate-800 text-base">{me?.name}</p><p className="text-slate-400 text-sm">{me?.email}</p><div className="flex items-center gap-2 mt-1"><span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${me?.role==="master"?"bg-indigo-100 text-indigo-700":"bg-slate-200 text-slate-600"}`}>{me?.role==="master"?"👑 마스터":"일반회원"}</span>{me?.jobRole&&<span className="text-xs px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">{me?.jobRole}</span>}</div></div></div>
-        <button onClick={()=>{setModal(null);logout();}} className="w-full flex items-center justify-center gap-2 border border-red-200 text-red-500 py-3 rounded-xl text-sm font-semibold hover:bg-red-50"><LogOut size={14}/>로그아웃</button>
+        <div className="space-y-2">
+          <button onClick={()=>{setPwForm({cur:"",next:"",next2:""});setPwErr("");setModal("changePassword");}} className="w-full flex items-center justify-center gap-2 border border-slate-200 text-slate-600 py-3 rounded-xl text-sm font-semibold hover:bg-slate-50">🔒 비밀번호 변경</button>
+          <button onClick={()=>{setModal(null);logout();}} className="w-full flex items-center justify-center gap-2 border border-red-200 text-red-500 py-3 rounded-xl text-sm font-semibold hover:bg-red-50"><LogOut size={14}/>로그아웃</button>
+        </div>
+      </Sheet>}
+      {modal==="changePassword"&&<Sheet title="비밀번호 변경" onClose={()=>setModal(null)}>
+        <div className="space-y-4 mb-5">
+          <Fl label="현재 비밀번호"><input type="password" className={IC} placeholder="현재 비밀번호 입력" value={pwForm.cur} onChange={e=>setPwForm({...pwForm,cur:e.target.value})}/></Fl>
+          <div className="border-t border-slate-100 pt-4 space-y-3">
+            <Fl label="새 비밀번호"><input type="password" className={IC} placeholder="새 비밀번호 (4자 이상)" value={pwForm.next} onChange={e=>setPwForm({...pwForm,next:e.target.value})}/></Fl>
+            <Fl label="새 비밀번호 확인"><input type="password" className={IC} placeholder="새 비밀번호 재입력" value={pwForm.next2} onChange={e=>setPwForm({...pwForm,next2:e.target.value})} onKeyDown={e=>e.key==="Enter"&&changePassword()}/></Fl>
+          </div>
+          {pwErr&&<p className="text-red-400 text-xs flex items-center gap-1.5"><AlertCircle size={12}/>{pwErr}</p>}
+        </div>
+        <div className="flex gap-3"><BtnGhost onClick={()=>setModal("myInfo")} className="flex-1">취소</BtnGhost><BtnPrimary onClick={changePassword} className="flex-1">변경 완료</BtnPrimary></div>
       </Sheet>}
       {modal==="users"&&<Sheet title="회원 관리" onClose={()=>setModal(null)}>
         <div className="space-y-2 mb-4">{users.map(u=><div key={u.id} className="flex items-center gap-3 p-3 bg-slate-50 rounded-xl"><Av n={u.name} sz="w-10 h-10" ts="text-sm"/><div className="flex-1 min-w-0"><p className="font-semibold text-slate-800 text-sm">{u.name}</p><p className="text-slate-400 text-xs truncate">{u.jobRole ? `${u.jobRole}·` : ''}{u.email}</p></div><span className={`text-xs px-2.5 py-1.5 rounded-full font-semibold flex-shrink-0 ${u.role==="master"?"bg-indigo-100 text-indigo-700":"bg-slate-200 text-slate-600"}`}>{u.role==="master"?"👑 마스터":"일반"}</span></div>)}</div>

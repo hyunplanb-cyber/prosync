@@ -264,6 +264,8 @@ export default function App(){
   const [addMemberCfg,setAddMemberCfg] = useState({uid:"",role:"기획",customRole:"",tabs:["schedule","progress","documents"]});
   const [replaceTarget,setReplaceTarget] = useState(null); // {uid, cfg} 교체 대상
   const [loading, setLoading] = useState(true);
+  const [expandedUnitPhases, setExpandedUnitPhases] = useState({});
+  const [expandedWeeks, setExpandedWeeks] = useState({});
 
   /* ── 초기 데이터 로드 ── */
   useEffect(()=>{
@@ -874,9 +876,11 @@ export default function App(){
               });
             }
             const wTP=tw?Math.round(wpT/tw):0, wCP=tw?Math.round(wpC/tw):0;
+            const isWOpen=expandedWeeks[w.num]!=null?expandedWeeks[w.num]:isCurrent;
             return(
               <div key={w.num} className={`bg-white rounded-xl sm:rounded-2xl border shadow-sm overflow-hidden ${isCurrent?"border-indigo-300 ring-2 ring-indigo-100":isPast?"border-slate-100":"border-dashed border-slate-200"}`}>
-                <div className={`px-4 py-3 flex items-center justify-between ${isCurrent?"bg-indigo-500":isPast?"bg-slate-700":"bg-slate-50"}`}>
+                <button onClick={()=>setExpandedWeeks(p=>({...p,[w.num]:!isWOpen}))}
+                  className={`w-full px-4 py-3 flex items-center justify-between ${isCurrent?"bg-indigo-500":isPast?"bg-slate-700":"bg-slate-50"}`}>
                   <div className="flex items-center gap-2.5">
                     <div className={`text-xs font-extrabold px-2.5 py-1 rounded-full ${isCurrent?"bg-white text-indigo-600":isPast?"bg-white/20 text-white":"bg-slate-200 text-slate-500"}`}>{w.num}주차</div>
                     <div>
@@ -894,58 +898,58 @@ export default function App(){
                       <p className={`text-base font-extrabold ${isCurrent?"text-yellow-300":isPast?"text-white":"text-slate-400"}`}>{isFuture?"—":wCP+"%"}</p>
                     </div>
                   </div>
-                </div>
-                {activeTasks.length>0&&(
-                  <div className="divide-y divide-slate-50">
-                    {activeTasks.map(t=>{
-                      const ph=projTasks.find(x=>x.id===t.parentId);
-                      const phC=ph?.color||selP.color;
-                      const asOfTask=isFuture?w.end:isCurrent?today:w.end;
-                      const tWP=calcPctAt(t.ts,t.te,w.end);
-                      const tCP=calcPctAt(t.cs,t.ce,asOfTask);
-                      const subs=projTasks.filter(s=>s.parentId===t.id).sort((a,b)=>(a.ts||'').localeCompare(b.ts||''));
-                      const activeSubs=subs.filter(s=>isActiveInWeek(s.ts,s.te,w.start,w.end)||isActiveInWeek(s.cs,s.ce,w.start,w.end));
-                      return(
-                        <div key={t.id}>
-                          {/* Task 헤더 행 */}
-                          <div className="px-4 py-3 flex items-center gap-3">
-                            <div className="w-1 h-8 rounded-full flex-shrink-0" style={{backgroundColor:phC}}/>
-                            <div className="flex items-center gap-1.5 flex-1 min-w-0 flex-wrap">
-                              {t.role&&<RTag r={t.role}/>}
-                              <span className="text-xs font-bold text-slate-700 truncate">{t.title}</span>
-                            </div>
-                            <div className="flex items-center gap-3 flex-shrink-0">
-                              <Av n={uN(t.uid)} sz="w-6 h-6" ts="text-[10px]"/>
-                              <div className="text-right">
-                                <p className="text-[10px] text-slate-400">현황</p>
-                                <p className="text-sm font-extrabold" style={{color:phC}}>{isFuture?"—":tCP+"%"}</p>
-                              </div>
-                            </div>
-                          </div>
-                          {/* SubTask 목록 — 일정목록 스타일 */}
-                          {(activeSubs.length>0?activeSubs:subs).length>0&&(
-                            <div className="bg-slate-50 divide-y divide-white">
-                              {(activeSubs.length>0?activeSubs:subs).map(s=>{
-                                const sCP=isFuture?0:calcPctAt(s.cs,s.ce,asOfTask);
-                                return(
-                                  <div key={s.id} className="px-5 sm:px-6 py-2.5 flex items-center gap-2.5">
-                                    <div className="w-3 flex-shrink-0"/>
-                                    {s.status==="완료"
-                                      ?<CheckSquare size={13} className="text-emerald-500 flex-shrink-0"/>
-                                      :<Square size={13} className="text-slate-300 flex-shrink-0"/>}
-                                    <span className={`flex-1 text-xs min-w-0 truncate ${s.status==="완료"?"line-through text-slate-400":"text-slate-600"}`}>{s.title}</span>
-                                    <span className="text-[11px] font-bold text-slate-400 flex-shrink-0 w-8 text-right">{isFuture?"—":sCP+"%"}</span>
+                  {isWOpen?<ChevronDown size={14} className={isCurrent||isPast?"text-white/70":"text-slate-400"}/>:<ChevronRight size={14} className={isCurrent||isPast?"text-white/70":"text-slate-400"}/>}
+                </button>
+                {isWOpen&&(
+                  <>
+                    {activeTasks.length>0&&(
+                      <div className="divide-y divide-slate-50">
+                        {activeTasks.map(t=>{
+                          const ph=projTasks.find(x=>x.id===t.parentId);
+                          const phC=ph?.color||selP.color;
+                          const asOfTask=isFuture?w.end:isCurrent?today:w.end;
+                          const tCP=calcPctAt(t.cs,t.ce,asOfTask);
+                          const subs=projTasks.filter(s=>s.parentId===t.id).sort((a,b)=>(a.ts||'').localeCompare(b.ts||''));
+                          const activeSubs=subs.filter(s=>isActiveInWeek(s.ts,s.te,w.start,w.end)||isActiveInWeek(s.cs,s.ce,w.start,w.end));
+                          return(
+                            <div key={t.id}>
+                              <div className="px-4 py-3 flex items-center gap-3">
+                                <div className="w-1 h-8 rounded-full flex-shrink-0" style={{backgroundColor:phC}}/>
+                                <div className="flex items-center gap-1.5 flex-1 min-w-0 flex-wrap">
+                                  {t.role&&<RTag r={t.role}/>}
+                                  <span className="text-xs font-bold text-slate-700 truncate">{t.title}</span>
+                                </div>
+                                <div className="flex items-center gap-3 flex-shrink-0">
+                                  <Av n={uN(t.uid)} sz="w-6 h-6" ts="text-[10px]"/>
+                                  <div className="text-right">
+                                    <p className="text-[10px] text-slate-400">현황</p>
+                                    <p className="text-sm font-extrabold" style={{color:phC}}>{isFuture?"—":tCP+"%"}</p>
                                   </div>
-                                );
-                              })}
+                                </div>
+                              </div>
+                              {(activeSubs.length>0?activeSubs:subs).length>0&&(
+                                <div className="bg-slate-50 divide-y divide-white">
+                                  {(activeSubs.length>0?activeSubs:subs).map(s=>{
+                                    const sCP=isFuture?0:calcPctAt(s.cs,s.ce,asOfTask);
+                                    return(
+                                      <div key={s.id} className="px-5 sm:px-6 py-2.5 flex items-center gap-2.5">
+                                        <div className="w-3 flex-shrink-0"/>
+                                        {s.status==="완료"?<CheckSquare size={13} className="text-emerald-500 flex-shrink-0"/>:<Square size={13} className="text-slate-300 flex-shrink-0"/>}
+                                        <span className={`flex-1 text-xs min-w-0 truncate ${s.status==="완료"?"line-through text-slate-400":"text-slate-600"}`}>{s.title}</span>
+                                        <span className="text-[11px] font-bold text-slate-400 flex-shrink-0 w-8 text-right">{isFuture?"—":sCP+"%"}</span>
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              )}
                             </div>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                    {activeTasks.length===0&&<p className="px-4 py-4 text-xs text-slate-300 text-center">이 주에 예정된 작업이 없어요</p>}
+                  </>
                 )}
-                {activeTasks.length===0&&<p className="px-4 py-4 text-xs text-slate-300 text-center">이 주에 예정된 작업이 없어요</p>}
               </div>
             );
           })}
@@ -1040,16 +1044,24 @@ export default function App(){
                     {phases.map(ph=>{
                       const phTp=treePct(projTasks,ph.id,"t"),phCp=treePct(projTasks,ph.id,"c");
                       const phTasks=projTasks.filter(t=>t.parentId===ph.id).sort((a,b)=>(a.ts||'').localeCompare(b.ts||''));
+                      const isOpen=expandedUnitPhases[ph.id]!==false;
                       return(
                         <div key={ph.id} className="bg-white rounded-xl sm:rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
-                          <div className="p-4 text-white" style={{backgroundColor:ph.color||selP.color}}>
-                            <p className="font-extrabold text-sm">{ph.title}</p>
-                            <div className="grid grid-cols-2 gap-3 mt-3">
+                          <button onClick={()=>setExpandedUnitPhases(p=>({...p,[ph.id]:!isOpen}))}
+                            className="w-full p-4 text-white text-left" style={{backgroundColor:ph.color||selP.color}}>
+                            <div className="flex items-center justify-between">
+                              <p className="font-extrabold text-sm">{ph.title}</p>
+                              <div className="flex items-center gap-3">
+                                <span className="text-white/80 text-xs font-bold">{phTp}% / {phCp}%</span>
+                                {isOpen?<ChevronDown size={15} className="text-white/80"/>:<ChevronRight size={15} className="text-white/80"/>}
+                              </div>
+                            </div>
+                            {isOpen&&<div className="grid grid-cols-2 gap-3 mt-3">
                               <div><div className="flex justify-between text-xs mb-1"><span className="text-white/70">목표</span><b>{phTp}%</b></div><Bar v={phTp} color="rgba(255,255,255,0.9)" h="h-2"/></div>
                               <div><div className="flex justify-between text-xs mb-1"><span className="text-white/70">현황</span><b>{phCp}%</b></div><Bar v={phCp} color="rgba(255,255,255,0.5)" h="h-2"/></div>
-                            </div>
-                          </div>
-                          <div className="divide-y divide-slate-50">
+                            </div>}
+                          </button>
+                          {isOpen&&<div className="divide-y divide-slate-50">
                             {phTasks.map(t=>{
                               const tTp=calcPct(t.ts,t.te),tCp=calcPct(t.cs,t.ce),delayed=t.cs&&t.ce&&t.ts&&t.te&&new Date(t.ce)>new Date(t.te);
                               const subs=projTasks.filter(s=>s.parentId===t.id).sort((a,b)=>(a.ts||'').localeCompare(b.ts||''));
@@ -1067,7 +1079,7 @@ export default function App(){
                                 </div>
                               );
                             })}
-                          </div>
+                          </div>}
                         </div>
                       );
                     })}

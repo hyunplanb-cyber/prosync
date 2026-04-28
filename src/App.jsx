@@ -274,8 +274,11 @@ export default function App(){
   useEffect(()=>{
     loadAll().then(({users:u,projs:p,tasks:t,docs:d})=>{
       setUsers(u.length?u:INIT_USERS);
-      if(p.length){setProjs(p);setTasks(t);setDocs(d);}
-      else{
+      if(p.length){
+        const ovr=lsGetTaskOverrides();
+        const merged=t.map(tk=>ovr[tk.id]??tk);
+        setProjs(p);setTasks(merged);setDocs(d);
+      } else{
         setProjs(INIT_PROJS);setTasks(INIT_TASKS);setDocs(INIT_DOCS);
         seedInitialData(INIT_USERS,INIT_PROJS,INIT_TASKS,INIT_DOCS);
       }
@@ -291,6 +294,11 @@ export default function App(){
   /* ── localStorage 유저 캐시 헬퍼 ── */
   function lsGetUsers(){try{return JSON.parse(localStorage.getItem('ps_users')||'[]');}catch{return[];}}
   function lsSaveUser(u){const arr=lsGetUsers().filter(x=>x.email!==u.email);localStorage.setItem('ps_users',JSON.stringify([...arr,u]));}
+
+  /* ── localStorage 태스크 오버라이드 헬퍼 (Supabase UPDATE 실패 보완) ── */
+  function lsGetTaskOverrides(){try{return JSON.parse(localStorage.getItem('ps_task_overrides')||'{}');}catch{return{};}}
+  function lsSaveTaskOverride(t){const o=lsGetTaskOverrides();o[t.id]=t;localStorage.setItem('ps_task_overrides',JSON.stringify(o));}
+  function lsRemoveTaskOverride(id){const o=lsGetTaskOverrides();delete o[id];localStorage.setItem('ps_task_overrides',JSON.stringify(o));}
 
   /* ── 인증 ── */
   function login(){
@@ -420,7 +428,7 @@ export default function App(){
   }
   function doEditPhase(){
     const updated={...tasks.find(t=>t.id===editItem.id),...editItem,_statusManual:true};
-    setTasks(tasks.map(t=>t.id===editItem.id?updated:t));dbUpdateTask(updated);
+    setTasks(tasks.map(t=>t.id===editItem.id?updated:t));dbUpdateTask(updated);lsSaveTaskOverride(updated);
     setEditItem(null);setModal(null);
   }
   function doDeletePhase(id){
@@ -439,7 +447,7 @@ export default function App(){
   }
   function doEditTask(){
     const updated={...tasks.find(t=>t.id===editItem.id),...editItem,_statusManual:true};
-    setTasks(tasks.map(t=>t.id===editItem.id?updated:t));dbUpdateTask(updated);
+    setTasks(tasks.map(t=>t.id===editItem.id?updated:t));dbUpdateTask(updated);lsSaveTaskOverride(updated);
     setEditItem(null);setModal(null);
   }
   function doDeleteTask(id){
@@ -457,10 +465,10 @@ export default function App(){
   }
   function doEditSub(){
     const updated={...tasks.find(t=>t.id===editItem.id),...editItem};
-    setTasks(tasks.map(t=>t.id===editItem.id?updated:t));dbUpdateTask(updated);
+    setTasks(tasks.map(t=>t.id===editItem.id?updated:t));dbUpdateTask(updated);lsSaveTaskOverride(updated);
     setEditItem(null);setModal(null);
   }
-  function doDeleteSub(id){setTasks(tasks.filter(t=>t.id!==id));dbDeleteTask(id);}
+  function doDeleteSub(id){setTasks(tasks.filter(t=>t.id!==id));dbDeleteTask(id);lsRemoveTaskOverride(id);}
 
   /* ── 자료 ── */
   /* ── 멤버 추가 ── */
@@ -902,7 +910,7 @@ export default function App(){
                 return(
                   <div key={s.id} className="px-3 sm:px-4 py-2.5 flex items-center gap-2 group hover:bg-slate-50">
                     <div className="w-4 flex-shrink-0"/>
-                    <button onClick={()=>{if(canEdit(s)){const ns=s.status==="완료"?"예정":"완료";const updated={...s,status:ns,_statusManual:true};setTasks(tasks.map(x=>x.id===s.id?updated:x));dbUpdateTask(updated);}}} className={`flex-shrink-0 ${canEdit(s)?"cursor-pointer":"cursor-default"}`}>
+                    <button onClick={()=>{if(canEdit(s)){const ns=s.status==="완료"?"예정":"완료";const updated={...s,status:ns,_statusManual:true};setTasks(tasks.map(x=>x.id===s.id?updated:x));dbUpdateTask(updated);lsSaveTaskOverride(updated);}}} className={`flex-shrink-0 ${canEdit(s)?"cursor-pointer":"cursor-default"}`}>
                       {sStatus==="완료"?<CheckSquare size={14} className="text-emerald-500"/>:<Square size={14} className="text-slate-300"/>}
                     </button>
                     {/* 제목 + 날짜 */}

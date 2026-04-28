@@ -309,7 +309,7 @@ export default function App(){
     dbRegister(rf.name,rf.email,rf.password).then(u=>{
       setUsers([...users,u]);setMe(u);setPage("dash");
     }).catch(err=>{
-      setRE(err?.message?.includes("unique")?"이미 사용 중인 이메일입니다.":"회원가입 실패, 잠시 후 다시 시도해주세요.");
+      setRE(err?.message?.includes("unique")?"이미 사용 중인 이메일입니다.":`오류: ${err?.message||err?.code||JSON.stringify(err)}`);
     });
   }
   function logout(){setMe(null);setPage("login");setLF({email:"",password:""});}

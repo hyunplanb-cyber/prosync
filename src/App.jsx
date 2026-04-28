@@ -613,7 +613,7 @@ export default function App(){
         <button onClick={()=>{setModal(null);logout();}} className="w-full flex items-center justify-center gap-2 border border-red-200 text-red-500 py-3 rounded-xl text-sm font-semibold hover:bg-red-50"><LogOut size={14}/>로그아웃</button>
       </Sheet>}
       {modal==="users"&&<Sheet title="회원 관리" onClose={()=>setModal(null)}>
-        <div className="space-y-2 mb-4">{users.map(u=><div key={u.id} className="flex items-center gap-3 p-3 bg-slate-50 rounded-xl"><Av n={u.name} sz="w-10 h-10" ts="text-sm"/><div className="flex-1 min-w-0"><p className="font-semibold text-slate-800 text-sm">{u.name}</p><p className="text-slate-400 text-xs truncate">{u.jobRole}·{u.email}</p></div><span className={`text-xs px-2.5 py-1.5 rounded-full font-semibold flex-shrink-0 ${u.role==="master"?"bg-indigo-100 text-indigo-700":"bg-slate-200 text-slate-600"}`}>{u.role==="master"?"👑 마스터":"일반"}</span></div>)}</div>
+        <div className="space-y-2 mb-4">{users.map(u=><div key={u.id} className="flex items-center gap-3 p-3 bg-slate-50 rounded-xl"><Av n={u.name} sz="w-10 h-10" ts="text-sm"/><div className="flex-1 min-w-0"><p className="font-semibold text-slate-800 text-sm">{u.name}</p><p className="text-slate-400 text-xs truncate">{u.jobRole ? `${u.jobRole}·` : ''}{u.email}</p></div><span className={`text-xs px-2.5 py-1.5 rounded-full font-semibold flex-shrink-0 ${u.role==="master"?"bg-indigo-100 text-indigo-700":"bg-slate-200 text-slate-600"}`}>{u.role==="master"?"👑 마스터":"일반"}</span></div>)}</div>
         <button onClick={()=>setModal(null)} className="w-full border border-slate-200 text-slate-600 py-3 rounded-xl text-sm font-semibold hover:bg-slate-50">닫기</button>
       </Sheet>}
       {modal==="addProj"&&<Sheet title="새 프로젝트 생성" onClose={()=>setModal(null)} wide>
@@ -1146,7 +1146,7 @@ export default function App(){
             <Fl label="담당자">
               <select className={IC} value={newTask.uid} onChange={e=>setNewTask({...newTask,uid:e.target.value})}>
                 <option value="">담당자 선택</option>
-                {users.map(u=><option key={u.id} value={u.id}>{u.name} ({u.jobRole})</option>)}
+                {users.map(u=><option key={u.id} value={u.id}>{u.name}{u.jobRole ? ` (${u.jobRole})` : ''}</option>)}
               </select>
             </Fl>
             <Fl label="설명"><textarea className={IC+" resize-none"} rows={2} placeholder="상세 설명" value={newTask.desc} onChange={e=>setNewTask({...newTask,desc:e.target.value})}/></Fl>
@@ -1163,7 +1163,7 @@ export default function App(){
           <div className="space-y-4">
             <Fl label="업무 제목"><input className={IC} value={editItem.title} onChange={e=>setEditItem({...editItem,title:e.target.value})}/></Fl>
             <Fl label="상태"><div className="flex gap-2">{["예정","진행중","완료"].map(s=><button key={s} onClick={()=>setEditItem({...editItem,status:s})} className={`flex-1 py-2.5 rounded-xl text-xs font-bold border transition-colors ${editItem.status===s?"bg-indigo-500 text-white border-indigo-500":"border-slate-200 text-slate-500 hover:border-indigo-300"}`}>{s}</button>)}</div></Fl>
-            <Fl label="담당자"><select className={IC} value={editItem.uid} onChange={e=>setEditItem({...editItem,uid:parseInt(e.target.value)})}>{users.map(u=><option key={u.id} value={u.id}>{u.name} ({u.jobRole})</option>)}</select></Fl>
+            <Fl label="담당자"><select className={IC} value={editItem.uid} onChange={e=>setEditItem({...editItem,uid:parseInt(e.target.value)})}>{users.map(u=><option key={u.id} value={u.id}>{u.name}{u.jobRole ? ` (${u.jobRole})` : ''}</option>)}</select></Fl>
             <div className="bg-indigo-50 rounded-xl p-4 space-y-3">
               <p className="text-indigo-700 text-xs font-bold">🎯 목표 일정</p>
               <div className="grid grid-cols-2 gap-3">

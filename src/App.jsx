@@ -146,7 +146,7 @@ function Sidebar({me,page,side,setSide,setPage,setModal,logout}){
         ))}
       </nav>
       <div className="p-3 border-t border-white/10">
-        {side?(<div className="flex items-center gap-3 mb-3 px-1"><Av n={me?.name}/><div className="flex-1 min-w-0"><p className="text-white text-sm font-semibold truncate">{me?.name}</p><p className="text-slate-400 text-xs">{me?.role==="master"?"👑 마스터":"일반회원"}</p></div></div>):<div className="flex justify-center mb-3"><Av n={me?.name}/></div>}
+        {side?(<button onClick={()=>setModal("myInfo")} className="flex items-center gap-3 mb-3 px-1 w-full hover:bg-white/5 rounded-xl py-1 transition-colors"><Av n={me?.name}/><div className="flex-1 min-w-0 text-left"><p className="text-white text-sm font-semibold truncate">{me?.name}</p><p className="text-slate-400 text-xs">{me?.role==="master"?"👑 마스터":"일반회원"}</p></div></button>):<button onClick={()=>setModal("myInfo")} className="flex justify-center mb-3 w-full"><Av n={me?.name}/></button>}
         <button onClick={logout} className="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-slate-400 hover:text-red-400 hover:bg-red-400/10 text-sm transition-colors"><LogOut size={14}/>{side&&"로그아웃"}</button>
       </div>
     </aside>
@@ -323,6 +323,28 @@ export default function App(){
     setUsers(users.map(u=>u.id===me.id?updated:u));
     supabase.from('users').update({password:pwForm.next}).eq('id',me.id).then(({error})=>{if(error)console.warn('[prosync] pw update',error);});
     setPwForm({cur:"",next:"",next2:""});setPwErr("");setModal("myInfo");
+  }
+  function doDeleteUser(uid){
+    if(!window.confirm("이 회원을 삭제할까요?\n담당 미완료 일정은 공석으로 변경됩니다."))return;
+    const today=new Date().toISOString().split("T")[0];
+    // 담당 미완료 태스크 → 공석
+    const nextTasks=tasks.map(t=>{
+      if(t.uid!==uid)return t;
+      const remaining=t.te>=today&&t.status!=="완료";
+      return remaining?{...t,uid:VACANT_ID}:t;
+    });
+    nextTasks.forEach((t,i)=>{if(t.uid===VACANT_ID&&tasks[i].uid===uid)dbUpdateTask(t);});
+    setTasks(nextTasks);
+    // 모든 프로젝트 멤버에서 제거
+    const nextProjs=projs.map(p=>{
+      if(!getMemberIds(p).includes(uid))return p;
+      const next={...p,members:p.members.filter(m=>(typeof m==="object"?m.id:m)!==uid)};
+      dbUpdateProject(next);return next;
+    });
+    setProjs(nextProjs);
+    // 유저 삭제
+    setUsers(users.filter(u=>u.id!==uid));
+    supabase.from('users').delete().eq('id',uid).then(({error})=>{if(error)console.warn('[prosync] delete user',error);});
   }
   function openProject(p){
     setSelP(p);
@@ -645,7 +667,17 @@ export default function App(){
         <div className="flex gap-3"><BtnGhost onClick={()=>setModal("myInfo")} className="flex-1">취소</BtnGhost><BtnPrimary onClick={changePassword} className="flex-1">변경 완료</BtnPrimary></div>
       </Sheet>}
       {modal==="users"&&<Sheet title="회원 관리" onClose={()=>setModal(null)}>
-        <div className="space-y-2 mb-4">{users.map(u=><div key={u.id} className="flex items-center gap-3 p-3 bg-slate-50 rounded-xl"><Av n={u.name} sz="w-10 h-10" ts="text-sm"/><div className="flex-1 min-w-0"><p className="font-semibold text-slate-800 text-sm">{u.name}</p><p className="text-slate-400 text-xs truncate">{u.jobRole ? `${u.jobRole}·` : ''}{u.email}</p></div><span className={`text-xs px-2.5 py-1.5 rounded-full font-semibold flex-shrink-0 ${u.role==="master"?"bg-indigo-100 text-indigo-700":"bg-slate-200 text-slate-600"}`}>{u.role==="master"?"👑 마스터":"일반"}</span></div>)}</div>
+        <div className="space-y-2 mb-4">{users.map(u=>(
+          <div key={u.id} className="flex items-center gap-3 p-3 bg-slate-50 rounded-xl">
+            <Av n={u.name} sz="w-10 h-10" ts="text-sm"/>
+            <div className="flex-1 min-w-0">
+              <p className="font-semibold text-slate-800 text-sm">{u.name}</p>
+              <p className="text-slate-400 text-xs truncate">{u.jobRole?`${u.jobRole}·`:''}{u.email}</p>
+            </div>
+            <span className={`text-xs px-2.5 py-1.5 rounded-full font-semibold flex-shrink-0 ${u.role==="master"?"bg-indigo-100 text-indigo-700":"bg-slate-200 text-slate-600"}`}>{u.role==="master"?"👑 마스터":"일반"}</span>
+            {u.role!=="master"&&<button onClick={()=>doDeleteUser(u.id)} className="w-7 h-7 flex items-center justify-center text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-lg flex-shrink-0"><Trash2 size={13}/></button>}
+          </div>
+        ))}</div>
         <button onClick={()=>setModal(null)} className="w-full border border-slate-200 text-slate-600 py-3 rounded-xl text-sm font-semibold hover:bg-slate-50">닫기</button>
       </Sheet>}
       {modal==="addProj"&&<Sheet title="새 프로젝트 생성" onClose={()=>setModal(null)} wide>

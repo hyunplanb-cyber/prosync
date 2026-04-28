@@ -286,7 +286,11 @@ export default function App(){
     if(lsCache){setProjs(lsCache.projs);setTasks(lsCache.tasks);setDocs(lsCache.docs||[]);setUsers(INIT_USERS);}
 
     loadAll().then(({users:u,projs:p,tasks:t,docs:d})=>{
-      setUsers(u.length?u:INIT_USERS);
+      // Supabase 유저 + localStorage 로컬 가입 유저 합치기 (이메일 기준 중복 제거)
+      const lsU=lsGetUsers();
+      const base=u.length?u:INIT_USERS;
+      const merged=[...base,...lsU.filter(lu=>!base.find(x=>x.email===lu.email))];
+      setUsers(merged);
       if(p.length){
         // 프로젝트/문서는 Supabase 최신, 태스크는 캐시 우선 (로컬 편집 보존)
         setProjs(p);setDocs(d);
@@ -299,7 +303,8 @@ export default function App(){
       }
       // lsCache 있고 p.length=0이면 캐시 데이터 유지 (이미 위에서 set)
     }).catch(()=>{
-      setUsers(INIT_USERS);
+      const lsU=lsGetUsers();
+      setUsers([...INIT_USERS,...lsU.filter(lu=>!INIT_USERS.find(x=>x.email===lu.email))]);
       if(!lsCache){setProjs(INIT_PROJS);setTasks(INIT_TASKS);setDocs(INIT_DOCS);}
     }).finally(()=>setLoading(false));
   },[]);

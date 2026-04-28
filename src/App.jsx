@@ -574,7 +574,7 @@ export default function App(){
             <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3 sm:gap-4">
               {myP.map(p=>{
                 const tP=projPct(tasks,p.id,"t"),cP=projPct(tasks,p.id,"c");
-                const mem=p.members.map(id=>users.find(u=>u.id===id)).filter(Boolean);
+                const mem=getMemberIds(p).map(id=>users.find(u=>u.id===id)).filter(Boolean);
                 const phases=tasks.filter(t=>t.pid===p.id&&t.depth===0);
                 return(
                   <div key={p.id} onClick={()=>openProject(p)} className="bg-white rounded-xl sm:rounded-2xl p-4 sm:p-5 border border-slate-100 shadow-sm hover:shadow-md hover:border-indigo-200 cursor-pointer transition-all group active:scale-[0.98]">
@@ -746,7 +746,7 @@ export default function App(){
                       {/* Phase 액션 (마스터) */}
                       {isMaster()&&(
                         <div className="flex items-center gap-1 ml-2">
-                          <button onClick={e=>{e.stopPropagation();setNewTask({title:"",role:"기획",uid:selP.members[0]||"",desc:"",ts:ph.ts,te:ph.te});setParentCtx(ph.id);setModal("addTask");}} title="Task 추가" className="w-7 h-7 flex items-center justify-center bg-white/20 hover:bg-white/30 rounded-lg"><Plus size={13}/></button>
+                          <button onClick={e=>{e.stopPropagation();setNewTask({title:"",role:"기획",uid:getMemberIds(selP)[0]||"",desc:"",ts:ph.ts,te:ph.te});setParentCtx(ph.id);setModal("addTask");}} title="Task 추가" className="w-7 h-7 flex items-center justify-center bg-white/20 hover:bg-white/30 rounded-lg"><Plus size={13}/></button>
                           <button onClick={e=>{e.stopPropagation();setEditItem({...ph});setModal("editPhase");}} title="Phase 수정" className="w-7 h-7 flex items-center justify-center bg-white/20 hover:bg-white/30 rounded-lg"><Edit2 size={12}/></button>
                           <button onClick={e=>{e.stopPropagation();doDeletePhase(ph.id);}} title="Phase 삭제" className="w-7 h-7 flex items-center justify-center bg-white/20 hover:bg-red-400/40 rounded-lg"><Trash2 size={12}/></button>
                         </div>
@@ -763,7 +763,7 @@ export default function App(){
                 {ph.expanded&&(
                   <div className="pl-2 sm:pl-4 space-y-2">
                     {phTasks.map(t=>renderTask(t,ph.color||selP.color,ph))}
-                    {isMaster()&&<button onClick={()=>{setNewTask({title:"",role:"기획",uid:selP.members[0]||"",desc:"",ts:ph.ts,te:ph.te});setParentCtx(ph.id);setModal("addTask");}} className="w-full border-2 border-dashed border-slate-200 hover:border-indigo-300 text-slate-400 hover:text-indigo-500 py-2.5 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors"><Plus size={13}/>Task 추가</button>}
+                    {isMaster()&&<button onClick={()=>{setNewTask({title:"",role:"기획",uid:getMemberIds(selP)[0]||"",desc:"",ts:ph.ts,te:ph.te});setParentCtx(ph.id);setModal("addTask");}} className="w-full border-2 border-dashed border-slate-200 hover:border-indigo-300 text-slate-400 hover:text-indigo-500 py-2.5 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors"><Plus size={13}/>Task 추가</button>}
                   </div>
                 )}
               </div>
@@ -1298,7 +1298,7 @@ export default function App(){
                           <MemberRoleEditor uid={VACANT_ID} mInfo={replaceTarget.cfg} onUpdate={patch=>setReplaceTarget({...replaceTarget,cfg:{...replaceTarget.cfg,...patch}})}/>
                           <div className="flex gap-2 pt-1">
                             <button onClick={()=>setReplaceTarget(null)} className="flex-1 border border-slate-200 text-slate-600 py-2 rounded-xl text-xs font-semibold hover:bg-slate-50">취소</button>
-                            <button onClick={()=>{if(!replaceTarget.cfg.newUid)return;doReplaceMember(editMember.id,VACANT_ID,replaceTarget.cfg.newUid,replaceTarget.cfg);doAddMember(editMember.id,replaceTarget.cfg.newUid,replaceTarget.cfg);setReplaceTarget(null);const np=doReplaceMember(editMember.id,VACANT_ID,replaceTarget.cfg.newUid,replaceTarget.cfg);if(np)setEditMember(np);}}
+                            <button onClick={()=>{if(!replaceTarget.cfg.newUid)return;const np=doReplaceMember(editMember.id,VACANT_ID,replaceTarget.cfg.newUid,replaceTarget.cfg);setReplaceTarget(null);if(np)setEditMember(np);}}
                               className="flex-1 bg-orange-500 hover:bg-orange-600 text-white py-2 rounded-xl text-xs font-semibold">배정 완료</button>
                           </div>
                         </div>

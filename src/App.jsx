@@ -270,27 +270,44 @@ export default function App(){
   const [expandedUnitPhases, setExpandedUnitPhases] = useState({});
   const [expandedWeeks, setExpandedWeeks] = useState({});
 
+  /* ── localStorage 앱 캐시 헬퍼 ── */
+  function lsGetAppCache(){
+    try{const c=JSON.parse(localStorage.getItem('ps_app_cache')||'{}');if(c.tasks?.length&&c.projs?.length)return c;}catch{}
+    return null;
+  }
+  function lsSaveAppCache(p,t,d){
+    try{localStorage.setItem('ps_app_cache',JSON.stringify({projs:p,tasks:t,docs:d}));}catch{}
+  }
+
   /* ── 초기 데이터 로드 ── */
   useEffect(()=>{
+    // localStorage 캐시 먼저 읽어서 즉시 표시
+    const lsCache=lsGetAppCache();
+    if(lsCache){setProjs(lsCache.projs);setTasks(lsCache.tasks);setDocs(lsCache.docs||[]);setUsers(INIT_USERS);}
+
     loadAll().then(({users:u,projs:p,tasks:t,docs:d})=>{
       setUsers(u.length?u:INIT_USERS);
       if(p.length){
-        // localStorage 캐시가 있으면 우선 사용 (Supabase UPDATE 실패 보완)
-        let cached=[];try{cached=JSON.parse(localStorage.getItem('ps_tasks')||'[]');}catch{}
-        setProjs(p);setTasks(cached.length?cached:t);setDocs(d);
-      } else{
+        // 프로젝트/문서는 Supabase 최신, 태스크는 캐시 우선 (로컬 편집 보존)
+        setProjs(p);setDocs(d);
+        if(!lsCache)setTasks(t);
+        // 캐시 없었으면 Supabase 데이터로 초기 캐시 생성
+        if(!lsCache)lsSaveAppCache(p,t,d);
+      } else if(!lsCache){
         setProjs(INIT_PROJS);setTasks(INIT_TASKS);setDocs(INIT_DOCS);
         seedInitialData(INIT_USERS,INIT_PROJS,INIT_TASKS,INIT_DOCS);
       }
+      // lsCache 있고 p.length=0이면 캐시 데이터 유지 (이미 위에서 set)
     }).catch(()=>{
-      setUsers(INIT_USERS);setProjs(INIT_PROJS);setTasks(INIT_TASKS);setDocs(INIT_DOCS);
+      setUsers(INIT_USERS);
+      if(!lsCache){setProjs(INIT_PROJS);setTasks(INIT_TASKS);setDocs(INIT_DOCS);}
     }).finally(()=>setLoading(false));
   },[]);
 
-  /* ── tasks 변경 시 localStorage 자동 저장 ── */
+  /* ── 데이터 변경 시 localStorage 자동 저장 ── */
   useEffect(()=>{
-    if(tasks.length)localStorage.setItem('ps_tasks',JSON.stringify(tasks));
-  },[tasks]);
+    if(tasks.length&&projs.length)lsSaveAppCache(projs,tasks,docs);
+  },[tasks,projs,docs]);
 
   const myP = me?.role==="master"?projs:projs.filter(p=>getMemberIds(p).includes(me?.id));
   const pd  = docs.filter(d=>d.pid===selP?.id);

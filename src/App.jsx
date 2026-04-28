@@ -306,11 +306,17 @@ export default function App(){
     if(!rf.name||!rf.email||!rf.password){setRE("모든 항목을 입력해주세요.");return;}
     if(rf.password!==rf.pw2){setRE("비밀번호가 일치하지 않습니다.");return;}
     if(users.find(u=>u.email===rf.email)){setRE("이미 사용 중인 이메일입니다.");return;}
+    // 로컬 먼저 생성 후 즉시 로그인, Supabase는 백그라운드 동기화
+    const tempId=Date.now();
+    const newUser={id:tempId,name:rf.name,email:rf.email,password:rf.password,role:"member"};
+    setUsers(prev=>[...prev,newUser]);
+    setMe(newUser);
+    setPage("dash");
+    setRF({name:"",email:"",password:"",pw2:""});
     dbRegister(rf.name,rf.email,rf.password).then(u=>{
-      setUsers([...users,u]);setMe(u);setPage("dash");
-    }).catch(err=>{
-      setRE(err?.message?.includes("unique")?"이미 사용 중인 이메일입니다.":`오류: ${err?.message||err?.code||JSON.stringify(err)}`);
-    });
+      setUsers(prev=>prev.map(x=>x.id===tempId?u:x));
+      setMe(u);
+    }).catch(err=>console.warn('[prosync] register sync',err));
   }
   function logout(){setMe(null);setPage("login");setLF({email:"",password:""});}
   function changePassword(){

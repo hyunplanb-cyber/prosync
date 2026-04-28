@@ -74,7 +74,7 @@ function buildNotionTasks(pid){
 /* ── 초기 데이터 ─────────────────────────────────────────────────── */
 const VACANT_ID=0; // 공석
 const INIT_USERS=[
-  {id:1,name:"김마스터",email:"hyun.planb@gmail.com",password:"1234",role:"master"},
+  {id:1,name:"H마스터",email:"hyun.planb@gmail.com",password:"1234",role:"master"},
   {id:2,name:"이디자인",email:"lee@test.com",   password:"1234",role:"member"},
   {id:3,name:"박개발",  email:"park@test.com",  password:"1234",role:"member"},
   {id:4,name:"최기획",  email:"choi@test.com",  password:"1234",role:"member"},

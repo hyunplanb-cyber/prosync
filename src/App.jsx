@@ -3,7 +3,7 @@ import { supabase } from "./lib/supabase.js";
 import {
   loadAll, seedInitialData, dbLoadTasks,
   dbLogin, dbRegister,
-  dbAddProject, dbUpdateProject,
+  dbAddProject, dbUpdateProject, dbDeleteProject,
   dbAddTask, dbAddTasks, dbUpdateTask, dbDeleteTask, dbDeleteTasks, dbDeleteProjectTasksNotManual,
   dbAddDoc, dbDeleteDoc,
 } from "./lib/db.js";
@@ -271,6 +271,8 @@ export default function App(){
   const [expandedWeeks, setExpandedWeeks] = useState({});
   const [supabaseSt, setSupabaseSt] = useState(""); // "" | "ok" | "fail"
   const supabaseLoadedRef = useRef(false);
+  const [editProj,  setEditProj]  = useState(null);
+  const [projColor, setProjColor] = useState("#6366f1");
 
   /* ── localStorage 앱 캐시 헬퍼 ── */
   function lsGetAppCache(){
@@ -478,6 +480,30 @@ export default function App(){
     if(notionTasks.length) dbAddTasks(notionTasks);
     setNP({name:"",desc:"",start:"",end:"",members:[],notionUrl:""});
     setMCfg({});setNotionSt("");setModal(null);
+  }
+  function openEditProj(p){
+    setEditProj(p);setProjColor(p.color||"#6366f1");
+    setNP({name:p.name,desc:p.desc||"",start:p.start||"",end:p.end||"",members:getMemberIds(p),notionUrl:p.notionUrl||""});
+    const cfg={};
+    p.members.forEach(m=>{if(typeof m==="object")cfg[m.id]={role:m.role||"기획",customRole:m.customRole||"",tabs:m.tabs||["schedule","progress","documents"]};});
+    setMCfg(cfg);setNotionSt("");setModal("editProj");
+  }
+  function doEditProj(){
+    if(!editProj||!np.name)return;
+    const memberObjs=np.members.map(uid=>({id:uid,role:mCfg[uid]?.role||"기획",customRole:mCfg[uid]?.customRole||"",tabs:mCfg[uid]?.tabs||["schedule","progress","documents"]}));
+    const updated={...editProj,...np,color:projColor,members:memberObjs};
+    setProjs(projs.map(p=>p.id===editProj.id?updated:p));
+    if(selP?.id===editProj.id)setSelP(updated);
+    dbUpdateProject(updated);
+    setEditProj(null);setNP({name:"",desc:"",start:"",end:"",members:[],notionUrl:""});setMCfg({});setModal(null);
+  }
+  function doDeleteProj(id){
+    if(!window.confirm("프로젝트를 삭제할까요?\n모든 일정과 자료가 함께 삭제됩니다."))return;
+    setProjs(projs.filter(p=>p.id!==id));
+    setTasks(tasks.filter(t=>t.pid!==id));
+    setDocs(docs.filter(d=>d.pid!==id));
+    dbDeleteProject(id);
+    if(selP?.id===id){setSelP(null);setPage("dash");}
   }
 
   /* ── Phase CRUD ── */
@@ -713,7 +739,13 @@ export default function App(){
                           {p.notionUrl&&<div className="flex items-center gap-1 mt-1"><Link size={9} className="text-slate-300"/><span className="text-slate-300 text-[10px]">Notion 연동</span></div>}
                         </div>
                       </div>
-                      <ChevronRight size={14} className="text-slate-300 group-hover:text-indigo-400 flex-shrink-0 mt-0.5"/>
+                      {isMaster()
+                        ?<div className="flex items-center gap-0.5 flex-shrink-0" onClick={e=>e.stopPropagation()}>
+                          <button onClick={()=>openEditProj(p)} className="p-1.5 rounded-lg text-slate-300 hover:text-indigo-500 hover:bg-indigo-50 transition-all"><Edit2 size={13}/></button>
+                          <button onClick={()=>doDeleteProj(p.id)} className="p-1.5 rounded-lg text-slate-300 hover:text-red-500 hover:bg-red-50 transition-all"><Trash2 size={13}/></button>
+                        </div>
+                        :<ChevronRight size={14} className="text-slate-300 group-hover:text-indigo-400 flex-shrink-0 mt-0.5"/>
+                      }
                     </div>
                     {phases.length>0&&<div className="flex gap-1.5 mb-3 flex-wrap">{phases.map(ph=><span key={ph.id} className="text-[10px] px-2 py-0.5 rounded-full font-bold text-white" style={{backgroundColor:ph.color||p.color}}>{ph.title.split("—")[0].trim()}</span>)}</div>}
                     <div className="space-y-2 mb-3">
@@ -766,9 +798,9 @@ export default function App(){
         ))}</div>
         <button onClick={()=>setModal(null)} className="w-full border border-slate-200 text-slate-600 py-3 rounded-xl text-sm font-semibold hover:bg-slate-50">닫기</button>
       </Sheet>}
-      {modal==="addProj"&&<Sheet title="새 프로젝트 생성" onClose={()=>setModal(null)} wide>
+      {(modal==="addProj"||modal==="editProj")&&<Sheet title={modal==="editProj"?"프로젝트 수정":"새 프로젝트 생성"} onClose={()=>{setModal(null);setEditProj(null);setNP({name:"",desc:"",start:"",end:"",members:[],notionUrl:""});setMCfg({});setNotionSt("");}} wide>
         <div className="space-y-4">
-          <div className="bg-slate-50 border border-slate-200 rounded-xl p-4">
+          {modal==="addProj"&&<div className="bg-slate-50 border border-slate-200 rounded-xl p-4">
             <p className="text-xs font-bold text-slate-600 mb-2 flex items-center gap-1.5"><Link size={12}/>노션 로드맵 연동 (선택)</p>
             <div className="flex gap-2">
               <input className={IC+" flex-1 text-xs"} placeholder="https://notion.so/..." value={np.notionUrl} onChange={e=>{setNP({...np,notionUrl:e.target.value});setNotionSt("");}}/>
@@ -779,13 +811,23 @@ export default function App(){
             </div>
             {notionSt==="ok"&&<p className="text-emerald-600 text-xs mt-2 flex items-center gap-1"><CheckCircle size={11}/>로드맵 읽기 완료 — 3뎁스 일정이 자동 생성됩니다.</p>}
             {notionSt==="fail"&&<p className="text-red-400 text-xs mt-2 flex items-center gap-1"><AlertCircle size={11}/>지원되는 Notion URL이 아닙니다.</p>}
-          </div>
+          </div>}
           <Fl label="프로젝트 명"><input className={IC} placeholder="이름" value={np.name} onChange={e=>setNP({...np,name:e.target.value})}/></Fl>
           <Fl label="내용"><textarea className={IC+" resize-none"} rows={2} placeholder="설명" value={np.desc} onChange={e=>setNP({...np,desc:e.target.value})}/></Fl>
           <div className="grid grid-cols-2 gap-3">
             <Fl label="시작일"><input type="date" className={IC} value={np.start} onChange={e=>setNP({...np,start:e.target.value})}/></Fl>
             <Fl label="종료일"><input type="date" className={IC} value={np.end} onChange={e=>setNP({...np,end:e.target.value})}/></Fl>
           </div>
+          {modal==="editProj"&&<Fl label="색상">
+            <div className="flex gap-2 mt-1">
+              {["#6366f1","#10b981","#f59e0b","#ef4444","#8b5cf6"].map(c=>(
+                <button key={c} type="button" onClick={()=>setProjColor(c)}
+                  className={`w-7 h-7 rounded-full border-2 transition-all ${projColor===c?"border-slate-600 scale-110":"border-transparent"}`}
+                  style={{backgroundColor:c}}/>
+              ))}
+            </div>
+          </Fl>}
+          {modal==="editProj"&&<Fl label="Notion URL (선택)"><input className={IC+" text-xs"} placeholder="https://notion.so/..." value={np.notionUrl} onChange={e=>setNP({...np,notionUrl:e.target.value})}/></Fl>}
           <Fl label="팀원 배정 및 권한 설정">
             <div className="space-y-2 mt-1">
               {users.filter(u=>u.role==="member").map(u=>{
@@ -838,7 +880,7 @@ export default function App(){
             </div>
           </Fl>
         </div>
-        <div className="flex gap-3 mt-5"><BtnGhost onClick={()=>setModal(null)} className="flex-1">취소</BtnGhost><BtnPrimary onClick={doAddProj} className="flex-1">생성</BtnPrimary></div>
+        <div className="flex gap-3 mt-5"><BtnGhost onClick={()=>{setModal(null);setEditProj(null);setNP({name:"",desc:"",start:"",end:"",members:[],notionUrl:""});setMCfg({});setNotionSt("");}} className="flex-1">취소</BtnGhost><BtnPrimary onClick={modal==="editProj"?doEditProj:doAddProj} className="flex-1">{modal==="editProj"?"저장":"생성"}</BtnPrimary></div>
       </Sheet>}
     </div>
   );

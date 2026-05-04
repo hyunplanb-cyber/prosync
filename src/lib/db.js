@@ -86,6 +86,8 @@ export const dbAddProject = p => sync(supabase.from('projects').insert([{
   members: p.members, color: p.color, notion_url: p.notionUrl || null,
 }]))
 
+export const dbDeleteProject = id => sync(supabase.from('projects').delete().eq('id', id))
+
 export const dbUpdateProject = p => sync(supabase.from('projects').upsert({
   id: p.id, name: p.name, description: p.desc ?? null,
   start_date: p.start ?? null, end_date: p.end ?? null,

@@ -286,23 +286,25 @@ export default function App(){
     if(lsCache){setProjs(lsCache.projs);setTasks(lsCache.tasks);setDocs(lsCache.docs||[]);setUsers(INIT_USERS);}
 
     loadAll().then(({users:u,projs:p,tasks:t,docs:d})=>{
-      // Supabase 유저 + localStorage 로컬 가입 유저 합치기 (이메일 기준 중복 제거)
+      // 유저: Supabase + localStorage 로컬 가입자 병합
       const lsU=lsGetUsers();
       const base=u.length?u:INIT_USERS;
-      const merged=[...base,...lsU.filter(lu=>!base.find(x=>x.email===lu.email))];
-      setUsers(merged);
+      setUsers([...base,...lsU.filter(lu=>!base.find(x=>x.email===lu.email))]);
+
       if(p.length){
-        // 프로젝트/문서는 Supabase 최신, 태스크는 캐시 우선 (로컬 편집 보존)
-        setProjs(p);setDocs(d);
-        if(!lsCache)setTasks(t);
-        // 캐시 없었으면 Supabase 데이터로 초기 캐시 생성
-        if(!lsCache)lsSaveAppCache(p,t,d);
-      } else if(!lsCache){
+        // Supabase 정상 → Supabase 데이터를 항상 우선 사용
+        // (dbUpdateTask가 upsert로 신뢰할 수 있으므로 Supabase가 최신 상태)
+        setProjs(p);setTasks(t);setDocs(d);
+        lsSaveAppCache(p,t,d); // 다른 브라우저·새로고침 대비 캐시 갱신
+      } else if(lsCache){
+        // Supabase 응답 없음 + 캐시 있음 → 캐시 유지 (이미 위에서 set)
+      } else{
+        // 첫 실행: 시드 데이터 사용 후 Supabase에 저장
         setProjs(INIT_PROJS);setTasks(INIT_TASKS);setDocs(INIT_DOCS);
         seedInitialData(INIT_USERS,INIT_PROJS,INIT_TASKS,INIT_DOCS);
       }
-      // lsCache 있고 p.length=0이면 캐시 데이터 유지 (이미 위에서 set)
     }).catch(()=>{
+      // Supabase 완전 장애 → 캐시 폴백, 없으면 INIT
       const lsU=lsGetUsers();
       setUsers([...INIT_USERS,...lsU.filter(lu=>!INIT_USERS.find(x=>x.email===lu.email))]);
       if(!lsCache){setProjs(INIT_PROJS);setTasks(INIT_TASKS);setDocs(INIT_DOCS);}

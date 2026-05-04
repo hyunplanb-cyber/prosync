@@ -81,11 +81,11 @@ export const dbAddProject = p => sync(supabase.from('projects').insert([{
   members: p.members, color: p.color, notion_url: p.notionUrl || null,
 }]))
 
-export const dbUpdateProject = p => sync(supabase.from('projects').update({
-  name: p.name, description: p.desc ?? null,
+export const dbUpdateProject = p => sync(supabase.from('projects').upsert({
+  id: p.id, name: p.name, description: p.desc ?? null,
   start_date: p.start ?? null, end_date: p.end ?? null,
   members: p.members, color: p.color, notion_url: p.notionUrl || null,
-}).eq('id', p.id))
+}))
 
 // ─── tasks ───────────────────────────────────────────────────
 export const dbAddTask = t => sync(supabase.from('tasks').insert([taskToRow(t)]))
@@ -100,7 +100,9 @@ export async function dbAddTasks(ts) {
   }
 }
 
-export const dbUpdateTask  = t  => sync(supabase.from('tasks').update(taskToRow(t)).eq('id', t.id))
+// upsert 사용: PK 포함 update는 PostgREST가 거부할 수 있으므로
+// INSERT ... ON CONFLICT(id) DO UPDATE 방식으로 확실히 저장
+export const dbUpdateTask = t => sync(supabase.from('tasks').upsert(taskToRow(t)))
 export const dbDeleteTask  = id => sync(supabase.from('tasks').delete().eq('id', id))
 export const dbDeleteTasks = ids => sync(supabase.from('tasks').delete().in('id', [...ids]))
 export const dbDeleteProjectTasksNotManual = pid =>

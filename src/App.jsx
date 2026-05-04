@@ -253,7 +253,8 @@ export default function App(){
   const [nd, setND] = useState({title:"",desc:"",link:"",files:[]});
   const [np, setNP] = useState({name:"",desc:"",start:"",end:"",members:[],notionUrl:""});
   const [mCfg, setMCfg] = useState({}); // {uid: {role,customRole,tabs}}
-  const [lf, setLF] = useState({email:"",password:""});
+  const [lf, setLF] = useState(()=>({email:localStorage.getItem('ps_saved_email')||"",password:""}));
+  const [saveId, setSaveId] = useState(()=>!!localStorage.getItem('ps_saved_email'));
   const [pwForm, setPwForm] = useState({cur:"",next:"",next2:""});
   const [pwErr, setPwErr] = useState("");
   const [le, setLE] = useState("");
@@ -357,15 +358,19 @@ export default function App(){
 
   /* ── 인증 ── */
   function login(){
+    const saveEmail=()=>{
+      if(saveId)localStorage.setItem('ps_saved_email',lf.email);
+      else localStorage.removeItem('ps_saved_email');
+    };
     dbLogin(lf.email,lf.password).then(u=>{
-      if(u){setMe(u);setPage("dash");setLE("");return;}
+      if(u){saveEmail();setMe(u);setPage("dash");setLE("");return;}
       // Supabase 장애 시 INIT_USERS 폴백
       const local=INIT_USERS.find(x=>x.email===lf.email&&x.password===lf.password);
-      if(local){setMe(local);setPage("dash");setLE("");}
+      if(local){saveEmail();setMe(local);setPage("dash");setLE("");}
       else setLE("이메일 또는 비밀번호가 올바르지 않습니다.");
     }).catch(()=>{
       const u=INIT_USERS.find(x=>x.email===lf.email&&x.password===lf.password);
-      if(u){setMe(u);setPage("dash");setLE("");}
+      if(u){saveEmail();setMe(u);setPage("dash");setLE("");}
       else setLE("이메일 또는 비밀번호가 올바르지 않습니다.");
     });
   }
@@ -655,6 +660,10 @@ export default function App(){
           <div className="space-y-4">
             <div><label className="text-slate-300 text-sm block mb-1.5">이메일</label><input type="email" value={lf.email} onChange={e=>setLF({...lf,email:e.target.value})} placeholder="이메일" className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-slate-500 focus:outline-none focus:border-indigo-400 text-sm"/></div>
             <div><label className="text-slate-300 text-sm block mb-1.5">비밀번호</label><input type="password" value={lf.password} onChange={e=>setLF({...lf,password:e.target.value})} onKeyDown={e=>e.key==="Enter"&&login()} placeholder="비밀번호" className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-slate-500 focus:outline-none focus:border-indigo-400 text-sm"/></div>
+            <div className="flex items-center gap-2">
+              <input type="checkbox" id="saveId" checked={saveId} onChange={e=>setSaveId(e.target.checked)} className="accent-indigo-500 w-4 h-4 cursor-pointer"/>
+              <label htmlFor="saveId" className="text-slate-400 text-xs cursor-pointer select-none">아이디 저장</label>
+            </div>
             {le&&<p className="text-red-400 text-xs flex items-center gap-1.5"><AlertCircle size={12}/>{le}</p>}
             <button onClick={login} className="w-full bg-indigo-500 hover:bg-indigo-400 text-white rounded-xl py-3.5 font-semibold text-sm">로그인</button>
             <button onClick={()=>{setPage("register");setLE("");}} className="w-full border border-white/10 text-slate-300 hover:text-white rounded-xl py-3 font-semibold text-sm flex items-center justify-center gap-2"><UserPlus size={15}/>회원가입</button>

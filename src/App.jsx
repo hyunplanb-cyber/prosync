@@ -5,7 +5,7 @@ import {
   dbLogin, dbRegister,
   dbAddProject, dbUpdateProject,
   dbAddTask, dbAddTasks, dbUpdateTask, dbDeleteTask, dbDeleteTasks, dbDeleteProjectTasksNotManual,
-  dbAddDoc, dbDeleteDoc,
+  dbAddDoc, dbDeleteDoc, dbSyncAllTasks,
 } from "./lib/db.js";
 import {
   LayoutDashboard, FolderOpen, TrendingUp, Archive, Users, LogOut,
@@ -286,25 +286,28 @@ export default function App(){
     if(lsCache){setProjs(lsCache.projs);setTasks(lsCache.tasks);setDocs(lsCache.docs||[]);setUsers(INIT_USERS);}
 
     loadAll().then(({users:u,projs:p,tasks:t,docs:d})=>{
-      // 유저: Supabase + localStorage 로컬 가입자 병합
       const lsU=lsGetUsers();
       const base=u.length?u:INIT_USERS;
       setUsers([...base,...lsU.filter(lu=>!base.find(x=>x.email===lu.email))]);
 
       if(p.length){
-        // Supabase 정상 → Supabase 데이터를 항상 우선 사용
-        // (dbUpdateTask가 upsert로 신뢰할 수 있으므로 Supabase가 최신 상태)
-        setProjs(p);setTasks(t);setDocs(d);
-        lsSaveAppCache(p,t,d); // 다른 브라우저·새로고침 대비 캐시 갱신
-      } else if(lsCache){
-        // Supabase 응답 없음 + 캐시 있음 → 캐시 유지 (이미 위에서 set)
-      } else{
-        // 첫 실행: 시드 데이터 사용 후 Supabase에 저장
+        if(lsCache){
+          // ★ 핵심 로직: localStorage(최신 편집) 표시 + Supabase에 백그라운드 동기화
+          // → 다른 브라우저에서 접속 시 Supabase에서 최신 데이터 수신 가능
+          setProjs(p);setDocs(d); // 프로젝트·문서는 Supabase 최신
+          lsSaveAppCache(p,lsCache.tasks,d);
+          dbSyncAllTasks(lsCache.tasks); // localStorage → Supabase 강제 싱크 (크로스브라우저)
+        } else{
+          // 캐시 없음(새 브라우저): Supabase 데이터 사용
+          setProjs(p);setTasks(t);setDocs(d);
+          lsSaveAppCache(p,t,d);
+        }
+      } else if(!lsCache){
         setProjs(INIT_PROJS);setTasks(INIT_TASKS);setDocs(INIT_DOCS);
         seedInitialData(INIT_USERS,INIT_PROJS,INIT_TASKS,INIT_DOCS);
       }
+      // lsCache 있고 p=0 → 위 286줄에서 이미 set, 그대로 유지
     }).catch(()=>{
-      // Supabase 완전 장애 → 캐시 폴백, 없으면 INIT
       const lsU=lsGetUsers();
       setUsers([...INIT_USERS,...lsU.filter(lu=>!INIT_USERS.find(x=>x.email===lu.email))]);
       if(!lsCache){setProjs(INIT_PROJS);setTasks(INIT_TASKS);setDocs(INIT_DOCS);}

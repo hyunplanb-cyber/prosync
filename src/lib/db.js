@@ -100,9 +100,18 @@ export async function dbAddTasks(ts) {
   }
 }
 
-// upsert 사용: PK 포함 update는 PostgREST가 거부할 수 있으므로
-// INSERT ... ON CONFLICT(id) DO UPDATE 방식으로 확실히 저장
 export const dbUpdateTask = t => sync(supabase.from('tasks').upsert(taskToRow(t)))
+
+// 로드 시 localStorage 전체를 Supabase에 강제 동기화 (크로스 브라우저용)
+// depth 순서 필수 (0→1→2): parent_id FK 제약 위반 방지
+export async function dbSyncAllTasks(tasks) {
+  for (const depth of [0, 1, 2]) {
+    const batch = tasks.filter(t => t.depth === depth).map(taskToRow)
+    if (!batch.length) continue
+    const { error } = await supabase.from('tasks').upsert(batch, { onConflict: 'id' })
+    if (error) console.warn('[prosync db] syncAllTasks depth=' + depth, error.message)
+  }
+}
 export const dbDeleteTask  = id => sync(supabase.from('tasks').delete().eq('id', id))
 export const dbDeleteTasks = ids => sync(supabase.from('tasks').delete().in('id', [...ids]))
 export const dbDeleteProjectTasksNotManual = pid =>

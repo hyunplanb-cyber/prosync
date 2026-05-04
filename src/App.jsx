@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { supabase } from "./lib/supabase.js";
 import {
   loadAll, seedInitialData, dbLoadTasks,
@@ -269,6 +269,7 @@ export default function App(){
   const [loading, setLoading] = useState(true);
   const [expandedUnitPhases, setExpandedUnitPhases] = useState({});
   const [expandedWeeks, setExpandedWeeks] = useState({});
+  const supabaseLoadedRef = useRef(false);
 
   /* ── localStorage 앱 캐시 헬퍼 ── */
   function lsGetAppCache(){
@@ -298,6 +299,7 @@ export default function App(){
 
         if(p.length){
           setProjs(p);setTasks(t);setDocs(d);
+          supabaseLoadedRef.current=true;
           lsSaveAppCache(p,t,d); // Supabase 로드 성공 후에만 캐시 업데이트
         } else if(!lsCache){
           // 최초 실행: 시드 데이터
@@ -312,9 +314,9 @@ export default function App(){
     })();
   },[]);
 
-  /* ── 데이터 변경 시 localStorage 자동 저장 ── */
+  /* ── 데이터 변경 시 localStorage 자동 저장 (Supabase 로드 성공 후에만) ── */
   useEffect(()=>{
-    if(tasks.length&&projs.length)lsSaveAppCache(projs,tasks,docs);
+    if(supabaseLoadedRef.current&&tasks.length&&projs.length)lsSaveAppCache(projs,tasks,docs);
   },[tasks,projs,docs]);
 
   const myP = me?.role==="master"?projs:projs.filter(p=>getMemberIds(p).includes(me?.id));

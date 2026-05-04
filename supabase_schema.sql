@@ -85,7 +85,7 @@ ALTER TABLE public.documents DISABLE ROW LEVEL SECURITY;
 -- 초기 유저 시드 (앱에서 첫 실행 시 프로젝트/태스크를 자동 시드)
 -- ============================================================
 INSERT INTO public.users (id, name, email, password, role) VALUES
-  (1, '김마스터', 'master@test.com', '1234', 'master'),
+  (1, 'H마스터', 'hyun.planb@gmail.com', '1234', 'master'),
   (2, '이디자인', 'lee@test.com',    '1234', 'member'),
   (3, '박개발',   'park@test.com',   '1234', 'member'),
   (4, '최기획',   'choi@test.com',   '1234', 'member')

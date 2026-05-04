@@ -92,26 +92,6 @@ export const dbUpdateProject = p => sync(supabase.from('projects').upsert({
   members: p.members, color: p.color, notion_url: p.notionUrl || null,
 }))
 
-// ─── sync all (크로스 디바이스) ──────────────────────────────
-export async function dbSyncAllProjects(projs) {
-  if (!projs.length) return
-  const { error } = await supabase.from('projects').upsert(projs.map(p => ({
-    id: p.id, name: p.name, description: p.desc ?? null,
-    start_date: p.start ?? null, end_date: p.end ?? null,
-    members: p.members, color: p.color, notion_url: p.notionUrl || null,
-  })), { onConflict: 'id' })
-  if (error) console.error('[prosync db] syncAllProjects:', error.message)
-}
-
-export async function dbSyncUsers(users) {
-  if (!users.length) return
-  const { error } = await supabase.from('users').upsert(
-    users.map(({ name, email, password, role }) => ({ name, email, password, role: role || 'member' })),
-    { onConflict: 'email', ignoreDuplicates: true }
-  )
-  if (error) console.error('[prosync db] syncUsers:', error.message)
-}
-
 // ─── tasks ───────────────────────────────────────────────────
 export const dbAddTask = t => sync(supabase.from('tasks').insert([taskToRow(t)]))
 
@@ -127,16 +107,6 @@ export async function dbAddTasks(ts) {
 
 export const dbUpdateTask = t => sync(supabase.from('tasks').upsert(taskToRow(t)))
 
-// 로드 시 localStorage 전체를 Supabase에 강제 동기화 (크로스 브라우저용)
-// depth 순서 필수 (0→1→2): parent_id FK 제약 위반 방지
-export async function dbSyncAllTasks(tasks) {
-  for (const depth of [0, 1, 2]) {
-    const batch = tasks.filter(t => t.depth === depth).map(taskToRow)
-    if (!batch.length) continue
-    const { error } = await supabase.from('tasks').upsert(batch, { onConflict: 'id' })
-    if (error) console.error('[prosync db] syncAllTasks depth=' + depth, error.message)
-  }
-}
 export const dbDeleteTask  = id => sync(supabase.from('tasks').delete().eq('id', id))
 export const dbDeleteTasks = ids => sync(supabase.from('tasks').delete().in('id', [...ids]))
 export const dbDeleteProjectTasksNotManual = pid =>

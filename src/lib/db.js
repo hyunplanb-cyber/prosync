@@ -45,6 +45,11 @@ const taskToRow = t => ({
 const sync = p => p.then(({ error }) => { if (error) console.warn('[prosync db]', error) })
 
 // ─── load all ────────────────────────────────────────────────
+export async function dbLoadTasks() {
+  const { data } = await supabase.from('tasks').select('*').order('created_at')
+  return (data ?? []).map(rowToTask)
+}
+
 export async function loadAll() {
   const [ur, pr, tr, dr] = await Promise.all([
     supabase.from('users').select('*').order('id'),

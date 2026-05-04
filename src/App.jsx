@@ -1,11 +1,11 @@
 import { useState, useEffect } from "react";
 import { supabase } from "./lib/supabase.js";
 import {
-  loadAll, seedInitialData,
+  loadAll, seedInitialData, dbLoadTasks,
   dbLogin, dbRegister,
   dbAddProject, dbUpdateProject,
   dbAddTask, dbAddTasks, dbUpdateTask, dbDeleteTask, dbDeleteTasks, dbDeleteProjectTasksNotManual,
-  dbAddDoc, dbDeleteDoc, dbSyncAllTasks, dbSyncAllProjects, dbSyncUsers,
+  dbAddDoc, dbDeleteDoc,
 } from "./lib/db.js";
 import {
   LayoutDashboard, FolderOpen, TrendingUp, Archive, Users, LogOut,
@@ -281,39 +281,32 @@ export default function App(){
 
   /* ── 초기 데이터 로드 ── */
   useEffect(()=>{
+    // 레거시 키 정리 (이전 버전에서 PC에만 저장되던 데이터)
+    localStorage.removeItem('ps_users');
+    localStorage.removeItem('ps_task_overrides');
+
     (async()=>{
       const lsCache=lsGetAppCache();
-      const lsUsers=lsGetUsers();
 
-      // 1. 캐시 즉시 표시 (빠른 UX — Supabase 응답 전까지)
+      // 캐시 즉시 표시 (빠른 UX — Supabase 응답 전까지 화면에 보임)
       if(lsCache){setProjs(lsCache.projs);setTasks(lsCache.tasks);setDocs(lsCache.docs||[]);}
 
       try{
-        // 2. 로컬 데이터 → Supabase 동기화
-        //    (어느 PC·브라우저에서 열어도 같은 데이터를 볼 수 있게)
-        if(lsCache){
-          await dbSyncAllProjects(lsCache.projs);
-          await dbSyncAllTasks(lsCache.tasks);
-        }
-        // 로컬에만 있는 계정도 Supabase에 등록 (다른 브라우저 로그인 가능)
-        if(lsUsers.length) await dbSyncUsers(lsUsers);
-
-        // 3. Supabase = 진실의 원천 → 최신 데이터 로드
+        // Supabase = 진실의 원천 → 항상 Supabase에서 로드
         const{users:u,projs:p,tasks:t,docs:d}=await loadAll();
-        const base=u.length?u:INIT_USERS;
-        setUsers([...base,...lsUsers.filter(lu=>!base.find(x=>x.email===lu.email))]);
+        setUsers(u.length?u:INIT_USERS);
 
         if(p.length){
           setProjs(p);setTasks(t);setDocs(d);
-          lsSaveAppCache(p,t,d);
+          lsSaveAppCache(p,t,d); // Supabase 로드 성공 후에만 캐시 업데이트
         } else if(!lsCache){
           // 최초 실행: 시드 데이터
           setProjs(INIT_PROJS);setTasks(INIT_TASKS);setDocs(INIT_DOCS);
           seedInitialData(INIT_USERS,INIT_PROJS,INIT_TASKS,INIT_DOCS);
         }
-        // lsCache 있고 Supabase 비어있음 → 동기화 실패 → lsCache 유지 (1에서 이미 set)
+        // Supabase 비어있고 캐시 있음 → lsCache 유지 (위에서 이미 set)
       }catch{
-        setUsers([...INIT_USERS,...lsUsers.filter(lu=>!INIT_USERS.find(x=>x.email===lu.email))]);
+        setUsers(INIT_USERS);
         if(!lsCache){setProjs(INIT_PROJS);setTasks(INIT_TASKS);setDocs(INIT_DOCS);}
       }finally{setLoading(false);}
     })();
@@ -328,44 +321,34 @@ export default function App(){
   const pd  = docs.filter(d=>d.pid===selP?.id);
   const uN  = id=>id===VACANT_ID?"공석":users.find(u=>u.id===id)?.name??"?";
 
-  /* ── localStorage 유저 캐시 헬퍼 ── */
-  function lsGetUsers(){try{return JSON.parse(localStorage.getItem('ps_users')||'[]');}catch{return[];}}
-  function lsSaveUser(u){const arr=lsGetUsers().filter(x=>x.email!==u.email);localStorage.setItem('ps_users',JSON.stringify([...arr,u]));}
-
-  /* ── localStorage 태스크 오버라이드 헬퍼 (Supabase UPDATE 실패 보완) ── */
-  function lsGetTaskOverrides(){try{return JSON.parse(localStorage.getItem('ps_task_overrides')||'{}');}catch{return{};}}
-  function lsSaveTaskOverride(t){const o=lsGetTaskOverrides();o[t.id]=t;localStorage.setItem('ps_task_overrides',JSON.stringify(o));}
-  function lsRemoveTaskOverride(id){const o=lsGetTaskOverrides();delete o[id];localStorage.setItem('ps_task_overrides',JSON.stringify(o));}
-
   /* ── 인증 ── */
   function login(){
     dbLogin(lf.email,lf.password).then(u=>{
       if(u){setMe(u);setPage("dash");setLE("");return;}
-      // Supabase 없으면 INIT_USERS → localStorage 순으로 폴백
-      const local=[...INIT_USERS,...lsGetUsers()].find(x=>x.email===lf.email&&x.password===lf.password);
+      // Supabase 장애 시 INIT_USERS 폴백
+      const local=INIT_USERS.find(x=>x.email===lf.email&&x.password===lf.password);
       if(local){setMe(local);setPage("dash");setLE("");}
       else setLE("이메일 또는 비밀번호가 올바르지 않습니다.");
     }).catch(()=>{
-      const u=[...INIT_USERS,...lsGetUsers()].find(x=>x.email===lf.email&&x.password===lf.password);
+      const u=INIT_USERS.find(x=>x.email===lf.email&&x.password===lf.password);
       if(u){setMe(u);setPage("dash");setLE("");}
       else setLE("이메일 또는 비밀번호가 올바르지 않습니다.");
     });
   }
-  function register(){
+  async function register(){
     if(!rf.name||!rf.email||!rf.password){setRE("모든 항목을 입력해주세요.");return;}
     if(rf.password!==rf.pw2){setRE("비밀번호가 일치하지 않습니다.");return;}
-    const allUsers=[...users,...lsGetUsers()];
-    if(allUsers.find(u=>u.email===rf.email)){setRE("이미 사용 중인 이메일입니다.");return;}
-    const tempId=Date.now();
-    const newUser={id:tempId,name:rf.name,email:rf.email,password:rf.password,role:"member"};
-    lsSaveUser(newUser); // localStorage에 즉시 저장 (새로고침해도 유지)
-    setUsers(prev=>[...prev,newUser]);
-    setMe(newUser);setPage("dash");
-    setRF({name:"",email:"",password:"",pw2:""});
-    dbRegister(rf.name,rf.email,rf.password).then(u=>{
-      lsSaveUser(u);
-      setUsers(prev=>prev.map(x=>x.id===tempId?u:x));setMe(u);
-    }).catch(err=>console.warn('[prosync] register sync',err));
+    if(users.find(u=>u.email===rf.email)){setRE("이미 사용 중인 이메일입니다.");return;}
+    try{
+      const u=await dbRegister(rf.name,rf.email,rf.password);
+      setUsers(prev=>[...prev,u]);
+      setMe(u);setPage("dash");
+      setRF({name:"",email:"",password:"",pw2:""});
+    }catch(err){
+      setRE(err?.message?.includes('unique')||err?.message?.includes('duplicate')
+        ?"이미 사용 중인 이메일입니다."
+        :"회원가입에 실패했습니다. 잠시 후 다시 시도해주세요.");
+    }
   }
   function logout(){setMe(null);setPage("login");setLF({email:"",password:""});}
   function changePassword(){
@@ -463,10 +446,12 @@ export default function App(){
     setTasks([...tasks,ph]);dbAddTask(ph);
     setNewPhase({title:"",desc:"",ts:"",te:"",color:"#6366f1"});setModal(null);
   }
-  function doEditPhase(){
+  async function doEditPhase(){
     const updated={...tasks.find(t=>t.id===editItem.id),...editItem,_statusManual:true};
-    setTasks(tasks.map(t=>t.id===editItem.id?updated:t));dbUpdateTask(updated);lsSaveTaskOverride(updated);
+    setTasks(tasks.map(t=>t.id===editItem.id?updated:t));
     setEditItem(null);setModal(null);
+    await dbUpdateTask(updated);
+    const fresh=await dbLoadTasks();if(fresh.length)setTasks(fresh);
   }
   function doDeletePhase(id){
     if(!window.confirm("이 Phase와 모든 하위 항목이 삭제됩니다. 계속할까요?"))return;
@@ -482,10 +467,12 @@ export default function App(){
     setTasks([...tasks,tk]);dbAddTask(tk);
     setNewTask({title:"",role:"기획",uid:"",desc:"",ts:"",te:""});setParentCtx(null);setModal(null);
   }
-  function doEditTask(){
+  async function doEditTask(){
     const updated={...tasks.find(t=>t.id===editItem.id),...editItem,_statusManual:true};
-    setTasks(tasks.map(t=>t.id===editItem.id?updated:t));dbUpdateTask(updated);lsSaveTaskOverride(updated);
+    setTasks(tasks.map(t=>t.id===editItem.id?updated:t));
     setEditItem(null);setModal(null);
+    await dbUpdateTask(updated);
+    const fresh=await dbLoadTasks();if(fresh.length)setTasks(fresh);
   }
   function doDeleteTask(id){
     if(!window.confirm("이 업무와 세부 항목이 삭제됩니다. 계속할까요?"))return;
@@ -500,12 +487,14 @@ export default function App(){
     setTasks([...tasks,s]);dbAddTask(s);
     setNewSub({title:"",desc:"",ts:"",te:""});setParentCtx(null);setModal(null);
   }
-  function doEditSub(){
+  async function doEditSub(){
     const updated={...tasks.find(t=>t.id===editItem.id),...editItem};
-    setTasks(tasks.map(t=>t.id===editItem.id?updated:t));dbUpdateTask(updated);lsSaveTaskOverride(updated);
+    setTasks(tasks.map(t=>t.id===editItem.id?updated:t));
     setEditItem(null);setModal(null);
+    await dbUpdateTask(updated);
+    const fresh=await dbLoadTasks();if(fresh.length)setTasks(fresh);
   }
-  function doDeleteSub(id){setTasks(tasks.filter(t=>t.id!==id));dbDeleteTask(id);lsRemoveTaskOverride(id);}
+  function doDeleteSub(id){setTasks(tasks.filter(t=>t.id!==id));dbDeleteTask(id);}
 
   /* ── 자료 ── */
   /* ── 멤버 추가 ── */
@@ -947,7 +936,7 @@ export default function App(){
                 return(
                   <div key={s.id} className="px-3 sm:px-4 py-2.5 flex items-center gap-2 group hover:bg-slate-50">
                     <div className="w-4 flex-shrink-0"/>
-                    <button onClick={()=>{if(canEdit(s)){const ns=s.status==="완료"?"예정":"완료";const updated={...s,status:ns,_statusManual:true};setTasks(tasks.map(x=>x.id===s.id?updated:x));dbUpdateTask(updated);lsSaveTaskOverride(updated);}}} className={`flex-shrink-0 ${canEdit(s)?"cursor-pointer":"cursor-default"}`}>
+                    <button onClick={()=>{if(canEdit(s)){const ns=s.status==="완료"?"예정":"완료";const updated={...s,status:ns,_statusManual:true};setTasks(tasks.map(x=>x.id===s.id?updated:x));dbUpdateTask(updated);}}} className={`flex-shrink-0 ${canEdit(s)?"cursor-pointer":"cursor-default"}`}>
                       {sStatus==="완료"?<CheckSquare size={14} className="text-emerald-500"/>:<Square size={14} className="text-slate-300"/>}
                     </button>
                     {/* 제목 + 날짜 */}

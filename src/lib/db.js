@@ -87,6 +87,26 @@ export const dbUpdateProject = p => sync(supabase.from('projects').upsert({
   members: p.members, color: p.color, notion_url: p.notionUrl || null,
 }))
 
+// ─── sync all (크로스 디바이스) ──────────────────────────────
+export async function dbSyncAllProjects(projs) {
+  if (!projs.length) return
+  const { error } = await supabase.from('projects').upsert(projs.map(p => ({
+    id: p.id, name: p.name, description: p.desc ?? null,
+    start_date: p.start ?? null, end_date: p.end ?? null,
+    members: p.members, color: p.color, notion_url: p.notionUrl || null,
+  })), { onConflict: 'id' })
+  if (error) console.error('[prosync db] syncAllProjects:', error.message)
+}
+
+export async function dbSyncUsers(users) {
+  if (!users.length) return
+  const { error } = await supabase.from('users').upsert(
+    users.map(({ name, email, password, role }) => ({ name, email, password, role: role || 'member' })),
+    { onConflict: 'email', ignoreDuplicates: true }
+  )
+  if (error) console.error('[prosync db] syncUsers:', error.message)
+}
+
 // ─── tasks ───────────────────────────────────────────────────
 export const dbAddTask = t => sync(supabase.from('tasks').insert([taskToRow(t)]))
 

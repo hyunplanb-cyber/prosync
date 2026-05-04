@@ -5,7 +5,7 @@ import {
   dbLogin, dbRegister,
   dbAddProject, dbUpdateProject,
   dbAddTask, dbAddTasks, dbUpdateTask, dbDeleteTask, dbDeleteTasks, dbDeleteProjectTasksNotManual,
-  dbAddDoc, dbDeleteDoc, dbSyncAllTasks,
+  dbAddDoc, dbDeleteDoc, dbSyncAllTasks, dbSyncAllProjects, dbSyncUsers,
 } from "./lib/db.js";
 import {
   LayoutDashboard, FolderOpen, TrendingUp, Archive, Users, LogOut,
@@ -281,37 +281,42 @@ export default function App(){
 
   /* ── 초기 데이터 로드 ── */
   useEffect(()=>{
-    // localStorage 캐시 먼저 읽어서 즉시 표시
-    const lsCache=lsGetAppCache();
-    if(lsCache){setProjs(lsCache.projs);setTasks(lsCache.tasks);setDocs(lsCache.docs||[]);setUsers(INIT_USERS);}
+    (async()=>{
+      const lsCache=lsGetAppCache();
+      const lsUsers=lsGetUsers();
 
-    loadAll().then(({users:u,projs:p,tasks:t,docs:d})=>{
-      const lsU=lsGetUsers();
-      const base=u.length?u:INIT_USERS;
-      setUsers([...base,...lsU.filter(lu=>!base.find(x=>x.email===lu.email))]);
+      // 1. 캐시 즉시 표시 (빠른 UX — Supabase 응답 전까지)
+      if(lsCache){setProjs(lsCache.projs);setTasks(lsCache.tasks);setDocs(lsCache.docs||[]);}
 
-      if(p.length){
+      try{
+        // 2. 로컬 데이터 → Supabase 동기화
+        //    (어느 PC·브라우저에서 열어도 같은 데이터를 볼 수 있게)
         if(lsCache){
-          // ★ 핵심 로직: localStorage(최신 편집) 표시 + Supabase에 백그라운드 동기화
-          // → 다른 브라우저에서 접속 시 Supabase에서 최신 데이터 수신 가능
-          setProjs(p);setDocs(d); // 프로젝트·문서는 Supabase 최신
-          lsSaveAppCache(p,lsCache.tasks,d);
-          dbSyncAllTasks(lsCache.tasks); // localStorage → Supabase 강제 싱크 (크로스브라우저)
-        } else{
-          // 캐시 없음(새 브라우저): Supabase 데이터 사용
+          await dbSyncAllProjects(lsCache.projs);
+          await dbSyncAllTasks(lsCache.tasks);
+        }
+        // 로컬에만 있는 계정도 Supabase에 등록 (다른 브라우저 로그인 가능)
+        if(lsUsers.length) await dbSyncUsers(lsUsers);
+
+        // 3. Supabase = 진실의 원천 → 최신 데이터 로드
+        const{users:u,projs:p,tasks:t,docs:d}=await loadAll();
+        const base=u.length?u:INIT_USERS;
+        setUsers([...base,...lsUsers.filter(lu=>!base.find(x=>x.email===lu.email))]);
+
+        if(p.length){
           setProjs(p);setTasks(t);setDocs(d);
           lsSaveAppCache(p,t,d);
+        } else if(!lsCache){
+          // 최초 실행: 시드 데이터
+          setProjs(INIT_PROJS);setTasks(INIT_TASKS);setDocs(INIT_DOCS);
+          seedInitialData(INIT_USERS,INIT_PROJS,INIT_TASKS,INIT_DOCS);
         }
-      } else if(!lsCache){
-        setProjs(INIT_PROJS);setTasks(INIT_TASKS);setDocs(INIT_DOCS);
-        seedInitialData(INIT_USERS,INIT_PROJS,INIT_TASKS,INIT_DOCS);
-      }
-      // lsCache 있고 p=0 → 위 286줄에서 이미 set, 그대로 유지
-    }).catch(()=>{
-      const lsU=lsGetUsers();
-      setUsers([...INIT_USERS,...lsU.filter(lu=>!INIT_USERS.find(x=>x.email===lu.email))]);
-      if(!lsCache){setProjs(INIT_PROJS);setTasks(INIT_TASKS);setDocs(INIT_DOCS);}
-    }).finally(()=>setLoading(false));
+        // lsCache 있고 Supabase 비어있음 → 동기화 실패 → lsCache 유지 (1에서 이미 set)
+      }catch{
+        setUsers([...INIT_USERS,...lsUsers.filter(lu=>!INIT_USERS.find(x=>x.email===lu.email))]);
+        if(!lsCache){setProjs(INIT_PROJS);setTasks(INIT_TASKS);setDocs(INIT_DOCS);}
+      }finally{setLoading(false);}
+    })();
   },[]);
 
   /* ── 데이터 변경 시 localStorage 자동 저장 ── */

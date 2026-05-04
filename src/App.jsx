@@ -236,9 +236,21 @@ export default function App(){
   const [tasks,  setTasks] = useState([]);
   const [docs,   setDocs]  = useState([]);
   const [me,     setMe]    = useState(()=>{try{return JSON.parse(localStorage.getItem('ps_session'))||null;}catch{return null;}});
-  const [page,   setPage]  = useState(()=>localStorage.getItem('ps_session')?'dash':'login');
-  const [selP,   setSelP]  = useState(null);
-  const [tab,    setTab]   = useState("schedule");
+  const [page,   setPage]  = useState(()=>{
+    if(!localStorage.getItem('ps_session')) return 'login';
+    try{ return JSON.parse(localStorage.getItem('ps_nav'))?.page||'dash'; }catch{ return 'dash'; }
+  });
+  const [selP,   setSelP]  = useState(()=>{
+    try{
+      const nav=JSON.parse(localStorage.getItem('ps_nav')||'null');
+      if(!nav?.projId) return null;
+      const cache=JSON.parse(localStorage.getItem('ps_app_cache')||'null');
+      return cache?.projs?.find(p=>p.id===nav.projId)||null;
+    }catch{ return null; }
+  });
+  const [tab,    setTab]   = useState(()=>{
+    try{ return JSON.parse(localStorage.getItem('ps_nav'))?.tab||'schedule'; }catch{ return 'schedule'; }
+  });
   const [pTab,   setPTab]  = useState("unit");
   const [side,   setSide]  = useState(true);
   const [modal,  setModal] = useState(null);
@@ -312,6 +324,7 @@ export default function App(){
 
         if(p.length){
           setProjs(p);setTasks(t);setDocs(d);
+          setSelP(prev=>prev?p.find(x=>x.id===prev.id)||prev:prev);
           supabaseLoadedRef.current=true;
           lsSaveAppCache(p,t,d); // Supabase 로드 성공 후에만 캐시 업데이트
         } else if(!lsCache){
@@ -333,6 +346,12 @@ export default function App(){
   useEffect(()=>{
     if(supabaseLoadedRef.current&&tasks.length&&projs.length)lsSaveAppCache(projs,tasks,docs);
   },[tasks,projs,docs]);
+
+  /* ── 네비게이션 상태 유지 (새로고침 복원용) ── */
+  useEffect(()=>{
+    if(!me||page==='login'||page==='register') return;
+    localStorage.setItem('ps_nav',JSON.stringify({page,projId:selP?.id||null,tab}));
+  },[page,selP,tab,me]);
 
   /* ── Supabase Realtime 구독 (크로스 디바이스 실시간 동기화) ── */
   useEffect(()=>{
@@ -407,7 +426,7 @@ export default function App(){
         :"회원가입에 실패했습니다. 잠시 후 다시 시도해주세요.");
     }
   }
-  function logout(){localStorage.removeItem('ps_session');setMe(null);setPage("login");setLF({email:"",password:""});}
+  function logout(){localStorage.removeItem('ps_session');localStorage.removeItem('ps_nav');setMe(null);setPage("login");setLF({email:"",password:""});}
   function changePassword(){
     if(!pwForm.cur||!pwForm.next||!pwForm.next2){setPwErr("모든 항목을 입력해주세요.");return;}
     if(pwForm.cur!==me.password){setPwErr("현재 비밀번호가 올바르지 않습니다.");return;}

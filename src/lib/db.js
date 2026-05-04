@@ -109,7 +109,7 @@ export async function dbSyncAllTasks(tasks) {
     const batch = tasks.filter(t => t.depth === depth).map(taskToRow)
     if (!batch.length) continue
     const { error } = await supabase.from('tasks').upsert(batch, { onConflict: 'id' })
-    if (error) console.warn('[prosync db] syncAllTasks depth=' + depth, error.message)
+    if (error) console.error('[prosync db] syncAllTasks depth=' + depth, error.message)
   }
 }
 export const dbDeleteTask  = id => sync(supabase.from('tasks').delete().eq('id', id))

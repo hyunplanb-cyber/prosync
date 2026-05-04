@@ -235,8 +235,8 @@ export default function App(){
   const [projs,  setProjs] = useState([]);
   const [tasks,  setTasks] = useState([]);
   const [docs,   setDocs]  = useState([]);
-  const [me,     setMe]    = useState(null);
-  const [page,   setPage]  = useState("login");
+  const [me,     setMe]    = useState(()=>{try{return JSON.parse(localStorage.getItem('ps_session'))||null;}catch{return null;}});
+  const [page,   setPage]  = useState(()=>localStorage.getItem('ps_session')?'dash':'login');
   const [selP,   setSelP]  = useState(null);
   const [tab,    setTab]   = useState("schedule");
   const [pTab,   setPTab]  = useState("unit");
@@ -300,7 +300,15 @@ export default function App(){
         // Supabase = 진실의 원천 → 항상 Supabase에서 로드
         const{users:u,projs:p,tasks:t,docs:d}=await loadAll();
         setSupabaseSt("ok");
-        setUsers(u.length?u:INIT_USERS);
+        const freshUsers=u.length?u:INIT_USERS;
+        setUsers(freshUsers);
+        // 세션 복원 시 최신 유저 데이터로 me 갱신
+        setMe(prev=>{
+          if(!prev)return prev;
+          const fresh=freshUsers.find(x=>x.id===prev.id);
+          if(fresh){localStorage.setItem('ps_session',JSON.stringify(fresh));return fresh;}
+          return prev;
+        });
 
         if(p.length){
           setProjs(p);setTasks(t);setDocs(d);
@@ -362,15 +370,16 @@ export default function App(){
       if(saveId)localStorage.setItem('ps_saved_email',lf.email);
       else localStorage.removeItem('ps_saved_email');
     };
+    const persist=u=>{saveEmail();localStorage.setItem('ps_session',JSON.stringify(u));setMe(u);setPage("dash");setLE("");};
     dbLogin(lf.email,lf.password).then(u=>{
-      if(u){saveEmail();setMe(u);setPage("dash");setLE("");return;}
+      if(u){persist(u);return;}
       // Supabase 장애 시 INIT_USERS 폴백
       const local=INIT_USERS.find(x=>x.email===lf.email&&x.password===lf.password);
-      if(local){saveEmail();setMe(local);setPage("dash");setLE("");}
+      if(local)persist(local);
       else setLE("이메일 또는 비밀번호가 올바르지 않습니다.");
     }).catch(()=>{
       const u=INIT_USERS.find(x=>x.email===lf.email&&x.password===lf.password);
-      if(u){saveEmail();setMe(u);setPage("dash");setLE("");}
+      if(u)persist(u);
       else setLE("이메일 또는 비밀번호가 올바르지 않습니다.");
     });
   }
@@ -380,6 +389,7 @@ export default function App(){
     if(users.find(u=>u.email===rf.email)){setRE("이미 사용 중인 이메일입니다.");return;}
     try{
       const u=await dbRegister(rf.name,rf.email,rf.password);
+      localStorage.setItem('ps_session',JSON.stringify(u));
       setUsers(prev=>[...prev,u]);
       setMe(u);setPage("dash");
       setRF({name:"",email:"",password:"",pw2:""});
@@ -397,7 +407,7 @@ export default function App(){
         :"회원가입에 실패했습니다. 잠시 후 다시 시도해주세요.");
     }
   }
-  function logout(){setMe(null);setPage("login");setLF({email:"",password:""});}
+  function logout(){localStorage.removeItem('ps_session');setMe(null);setPage("login");setLF({email:"",password:""});}
   function changePassword(){
     if(!pwForm.cur||!pwForm.next||!pwForm.next2){setPwErr("모든 항목을 입력해주세요.");return;}
     if(pwForm.cur!==me.password){setPwErr("현재 비밀번호가 올바르지 않습니다.");return;}

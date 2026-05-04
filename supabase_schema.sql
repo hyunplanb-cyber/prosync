@@ -92,3 +92,21 @@ INSERT INTO public.users (id, name, email, password, role) VALUES
 ON CONFLICT (email) DO NOTHING;
 
 SELECT setval('public.users_id_seq', 10);
+
+-- ============================================================
+-- anon / authenticated 롤 쓰기 권한 부여 (이 줄이 없으면 INSERT/UPDATE/DELETE 전부 실패)
+-- ============================================================
+GRANT USAGE ON SCHEMA public TO anon, authenticated;
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.users     TO anon, authenticated;
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.projects  TO anon, authenticated;
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.tasks     TO anon, authenticated;
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.documents TO anon, authenticated;
+GRANT USAGE, SELECT ON SEQUENCE public.users_id_seq      TO anon, authenticated;
+
+-- ============================================================
+-- Realtime 활성화 (크로스 디바이스 실시간 동기화)
+-- ============================================================
+ALTER PUBLICATION supabase_realtime ADD TABLE public.projects;
+ALTER PUBLICATION supabase_realtime ADD TABLE public.tasks;
+ALTER PUBLICATION supabase_realtime ADD TABLE public.documents;
+ALTER PUBLICATION supabase_realtime ADD TABLE public.users;

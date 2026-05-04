@@ -319,6 +319,32 @@ export default function App(){
     if(supabaseLoadedRef.current&&tasks.length&&projs.length)lsSaveAppCache(projs,tasks,docs);
   },[tasks,projs,docs]);
 
+  /* ── Supabase Realtime 구독 (크로스 디바이스 실시간 동기화) ── */
+  useEffect(()=>{
+    let timer=null;
+    function onDbChange(){
+      clearTimeout(timer);
+      timer=setTimeout(async()=>{
+        try{
+          const{users:u,projs:p,tasks:t,docs:d}=await loadAll();
+          if(p.length){
+            if(u.length)setUsers(u);
+            setProjs(p);setTasks(t);setDocs(d);
+            supabaseLoadedRef.current=true;
+            lsSaveAppCache(p,t,d);
+          }
+        }catch{}
+      },400);
+    }
+    const ch=supabase.channel('prosync-realtime')
+      .on('postgres_changes',{event:'*',schema:'public',table:'projects'},onDbChange)
+      .on('postgres_changes',{event:'*',schema:'public',table:'tasks'},onDbChange)
+      .on('postgres_changes',{event:'*',schema:'public',table:'documents'},onDbChange)
+      .on('postgres_changes',{event:'*',schema:'public',table:'users'},onDbChange)
+      .subscribe();
+    return()=>{clearTimeout(timer);supabase.removeChannel(ch);};
+  },[]);
+
   const myP = me?.role==="master"?projs:projs.filter(p=>getMemberIds(p).includes(me?.id));
   const pd  = docs.filter(d=>d.pid===selP?.id);
   const uN  = id=>id===VACANT_ID?"공석":users.find(u=>u.id===id)?.name??"?";

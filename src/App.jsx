@@ -209,8 +209,8 @@ function fd(d){return d?d.slice(5).replace("-","/"):"—";}
 
 /* ── 멤버 권한 헬퍼 ──────────────────────────────────────────────── */
 function getMemberInfo(uid,proj){
-  if(!proj?.members)return null;
-  return proj.members.find(m=>typeof m==="object"?m.id===uid:m===uid)||null;
+  if(!proj?.members||uid==null)return null;
+  return proj.members.find(m=>typeof m==="object"?String(m.id)===String(uid):String(m)===String(uid))||null;
 }
 function getMemberRole(uid,proj){
   const m=getMemberInfo(uid,proj);
@@ -224,7 +224,7 @@ function getMemberTabs(uid,proj){
 }
 function getMemberIds(proj){
   if(!proj?.members)return[];
-  return proj.members.map(m=>typeof m==="object"?m.id:m);
+  return proj.members.map(m=>typeof m==="object"?m.id:m).filter(id=>id!=null);
 }
 
 /* ════════════════════════════════════════════════════════════════════
@@ -379,7 +379,7 @@ export default function App(){
     return()=>{clearTimeout(timer);supabase.removeChannel(ch);};
   },[]);
 
-  const myP = me?.role==="master"?projs:projs.filter(p=>getMemberIds(p).includes(me?.id));
+  const myP = me?.role==="master"?projs:projs.filter(p=>getMemberIds(p).some(id=>String(id)===String(me?.id)));
   const pd  = docs.filter(d=>d.pid===selP?.id);
   const uN  = id=>id===VACANT_ID?"공석":users.find(u=>u.id===id)?.name??"?";
 
@@ -1038,7 +1038,7 @@ export default function App(){
                 <div className="hidden sm:flex items-center gap-1">{(()=>{if(t.uid===VACANT_ID)return <span className="text-[10px] px-1.5 py-0.5 rounded bg-orange-100 text-orange-500 font-bold">공석</span>;const mr=getMemberRole(t.uid,selP);return mr?<RTag r={mr}/>:null;})()}</div>
                 <Av n={uN(t.uid)} sz="w-6 h-6" ts="text-[10px]" vacant={t.uid===VACANT_ID}/>
                 {canEdit(t)&&<button onClick={()=>{setEditItem({...t});setModal("editTask");}} className="w-7 h-7 flex items-center justify-center text-slate-300 hover:text-indigo-500 hover:bg-indigo-50 rounded-lg"><Edit2 size={12}/></button>}
-                {(isMaster()||t.uid===me?.id)&&<button onClick={()=>doDeleteTask(t.id)} className="w-7 h-7 flex items-center justify-center text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-lg"><Trash2 size={12}/></button>}
+                {canEdit(t)&&<button onClick={()=>doDeleteTask(t.id)} className="w-7 h-7 flex items-center justify-center text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-lg"><Trash2 size={12}/></button>}
                 <button onClick={()=>{setNewSub({title:"",desc:"",ts:effTs,te:effTe});setParentCtx(t.id);setModal("addSub");}} className="w-7 h-7 flex items-center justify-center text-slate-300 hover:text-emerald-500 hover:bg-emerald-50 rounded-lg" title="세부업무 추가"><Plus size={12}/></button>
               </div>
             </div>
@@ -1068,7 +1068,7 @@ export default function App(){
                     {/* SubTask 액션 */}
                     <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
                       {canEdit(s)&&<button onClick={()=>{setEditItem({...s});setModal("editSub");}} className="w-6 h-6 flex items-center justify-center text-slate-300 hover:text-indigo-500 rounded"><Edit2 size={11}/></button>}
-                      {(isMaster()||s.uid===me?.id)&&<button onClick={()=>doDeleteSub(s.id)} className="w-6 h-6 flex items-center justify-center text-slate-300 hover:text-red-500 rounded"><Trash2 size={11}/></button>}
+                      {canEdit(s)&&<button onClick={()=>doDeleteSub(s.id)} className="w-6 h-6 flex items-center justify-center text-slate-300 hover:text-red-500 rounded"><Trash2 size={11}/></button>}
                     </div>
                   </div>
                 );
@@ -1327,7 +1327,7 @@ export default function App(){
                   </>
                 ):(
                   <div>
-                    <div className="flex items-center gap-2 mb-4"><button onClick={()=>setSelDoc(null)} className="w-8 h-8 flex items-center justify-center text-slate-500 hover:bg-slate-100 rounded-xl flex-shrink-0"><ArrowLeft size={16}/></button><h2 className="font-bold text-slate-800 flex-1 truncate">{selDoc.title}</h2>{(isMaster()||selDoc.uid===me?.id)&&<button onClick={()=>{setDocs(docs.filter(x=>x.id!==selDoc.id));dbDeleteDoc(selDoc.id);setSelDoc(null);}} className="w-8 h-8 flex items-center justify-center text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-xl"><Trash2 size={14}/></button>}<button className="w-8 h-8 flex items-center justify-center text-slate-300 hover:text-indigo-500 hover:bg-indigo-50 rounded-xl"><Share2 size={14}/></button></div>
+                    <div className="flex items-center gap-2 mb-4"><button onClick={()=>setSelDoc(null)} className="w-8 h-8 flex items-center justify-center text-slate-500 hover:bg-slate-100 rounded-xl flex-shrink-0"><ArrowLeft size={16}/></button><h2 className="font-bold text-slate-800 flex-1 truncate">{selDoc.title}</h2>{(isMaster()||String(selDoc.uid)===String(me?.id))&&<button onClick={()=>{setDocs(docs.filter(x=>x.id!==selDoc.id));dbDeleteDoc(selDoc.id);setSelDoc(null);}} className="w-8 h-8 flex items-center justify-center text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-xl"><Trash2 size={14}/></button>}<button className="w-8 h-8 flex items-center justify-center text-slate-300 hover:text-indigo-500 hover:bg-indigo-50 rounded-xl"><Share2 size={14}/></button></div>
                     <div className="bg-white rounded-xl sm:rounded-2xl border border-slate-100 shadow-sm p-5">
                       <div className="flex items-center gap-2.5 mb-4 pb-4 border-b border-slate-100"><Av n={uN(selDoc.uid)} sz="w-9 h-9"/><div><p className="font-semibold text-slate-800 text-sm">{uN(selDoc.uid)}</p><p className="text-slate-400 text-xs">{selDoc.at} 등록</p></div></div>
                       {selDoc.desc&&<div className="mb-5"><p className="text-xs font-bold text-slate-500 mb-2">내용</p><p className="text-sm text-slate-700 leading-relaxed">{selDoc.desc}</p></div>}
@@ -1401,7 +1401,10 @@ export default function App(){
           <div className="space-y-4">
             <Fl label="업무 제목"><input className={IC} value={editItem.title} onChange={e=>setEditItem({...editItem,title:e.target.value})}/></Fl>
             <Fl label="상태"><div className="flex gap-2">{["예정","진행중","완료"].map(s=><button key={s} onClick={()=>setEditItem({...editItem,status:s})} className={`flex-1 py-2.5 rounded-xl text-xs font-bold border transition-colors ${editItem.status===s?"bg-indigo-500 text-white border-indigo-500":"border-slate-200 text-slate-500 hover:border-indigo-300"}`}>{s}</button>)}</div></Fl>
-            <Fl label="담당자"><select className={IC} value={editItem.uid} onChange={e=>setEditItem({...editItem,uid:parseInt(e.target.value)})}>{users.map(u=><option key={u.id} value={u.id}>{u.name}{u.jobRole ? ` (${u.jobRole})` : ''}</option>)}</select></Fl>
+            {isMaster()
+              ?<Fl label="담당자"><select className={IC} value={editItem.uid} onChange={e=>setEditItem({...editItem,uid:parseInt(e.target.value)})}>{users.map(u=><option key={u.id} value={u.id}>{u.name}</option>)}</select></Fl>
+              :<Fl label="담당자"><p className={IC+" bg-slate-50 text-slate-500"}>{users.find(u=>String(u.id)===String(editItem.uid))?.name||"?"}</p></Fl>
+            }
             <div className="bg-indigo-50 rounded-xl p-4 space-y-3">
               <p className="text-indigo-700 text-xs font-bold">🎯 목표 일정</p>
               <div className="grid grid-cols-2 gap-3">

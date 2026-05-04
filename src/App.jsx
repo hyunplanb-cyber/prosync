@@ -630,14 +630,12 @@ export default function App(){
     return next;
   }
 
-  /* ── 멤버 교체: 교체 전 남은 일정을 신규 멤버로 변경 ── */
+  /* ── 멤버 교체: 해당 프로젝트의 모든 업무를 신규 멤버로 이전 ── */
   function doReplaceMember(projId, oldUid, newUid, cfg){
-    const today=new Date().toISOString().split("T")[0];
-    const affected=tasks.filter(t=>t.pid===projId&&t.uid===oldUid&&t.te>=today&&t.status!=="완료");
+    const affected=tasks.filter(t=>t.pid===projId&&String(t.uid)===String(oldUid));
     setTasks(tasks.map(t=>{
-      if(t.pid!==projId||t.uid!==oldUid)return t;
-      const isRemaining=t.te>=today&&t.status!=="완료";
-      return isRemaining?{...t,uid:newUid}:t;
+      if(t.pid!==projId||String(t.uid)!==String(oldUid))return t;
+      return {...t,uid:newUid};
     }));
     affected.forEach(t=>dbUpdateTask({...t,uid:newUid}));
     let next=null;
@@ -664,7 +662,7 @@ export default function App(){
 
   /* ── 편의 ── */
   function toggleExpand(id){setTasks(tasks.map(t=>t.id===id?{...t,expanded:!t.expanded}:t));}
-  function canEdit(t){return me?.role==="master"||t.uid===me?.id;}
+  function canEdit(t){return me?.role==="master"||(t.uid!=null&&me?.id!=null&&String(t.uid)===String(me.id));}
   function isMaster(){return me?.role==="master";}
   const navP={me,page,side,setSide,setPage,setModal,logout};
 

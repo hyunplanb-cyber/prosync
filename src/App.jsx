@@ -317,7 +317,7 @@ export default function App(){
         // 세션 복원 시 최신 유저 데이터로 me 갱신
         setMe(prev=>{
           if(!prev)return prev;
-          const fresh=freshUsers.find(x=>x.id===prev.id);
+          const fresh=freshUsers.find(x=>String(x.id)===String(prev.id));
           if(fresh){localStorage.setItem('ps_session',JSON.stringify(fresh));return fresh;}
           return prev;
         });
@@ -381,7 +381,8 @@ export default function App(){
 
   const myP = me?.role==="master"?projs:projs.filter(p=>getMemberIds(p).some(id=>String(id)===String(me?.id)));
   const pd  = docs.filter(d=>d.pid===selP?.id);
-  const uN  = id=>id===VACANT_ID?"공석":users.find(u=>u.id===id)?.name??"?";
+  // eslint-disable-next-line eqeqeq
+  const uN  = id=>id==VACANT_ID?"공석":users.find(u=>u.id==id)?.name??"?";
 
   /* ── 인증 ── */
   function login(){
@@ -434,7 +435,7 @@ export default function App(){
     if(pwForm.next!==pwForm.next2){setPwErr("새 비밀번호가 일치하지 않습니다.");return;}
     const updated={...me,password:pwForm.next};
     setMe(updated);
-    setUsers(users.map(u=>u.id===me.id?updated:u));
+    setUsers(users.map(u=>String(u.id)===String(me.id)?updated:u));
     supabase.from('users').update({password:pwForm.next}).eq('id',me.id).then(({error})=>{if(error)console.warn('[prosync] pw update',error);});
     setPwForm({cur:"",next:"",next2:""});setPwErr("");setModal("myInfo");
   }
@@ -662,7 +663,13 @@ export default function App(){
 
   /* ── 편의 ── */
   function toggleExpand(id){setTasks(tasks.map(t=>t.id===id?{...t,expanded:!t.expanded}:t));}
-  function canEdit(t){return me?.role==="master"||(t.uid!=null&&me?.id!=null&&String(t.uid)===String(me.id));}
+  function canEdit(t){
+    if(!me) return false;
+    if(me.role==="master") return true;
+    if(!t.uid||t.uid===0) return false;
+    // eslint-disable-next-line eqeqeq
+    return t.uid==me.id;
+  }
   function isMaster(){return me?.role==="master";}
   const navP={me,page,side,setSide,setPage,setModal,logout};
 
@@ -927,7 +934,7 @@ export default function App(){
     const phases=projTasks.filter(t=>t.depth===0).sort((a,b)=>(a.ts||'').localeCompare(b.ts||''));
     const tTotal=projPct(tasks,selP.id,"t"), cTotal=projPct(tasks,selP.id,"c");
     // 멤버 목록 (새 구조 지원)
-    const mem=getMemberIds(selP).map(id=>users.find(u=>u.id===id)).filter(Boolean);
+    const mem=getMemberIds(selP).map(id=>users.find(u=>String(u.id)===String(id))).filter(Boolean);
     // 현재 사용자 접근 가능 탭
     const allowedTabs=isMaster()?["schedule","progress","documents"]:getMemberTabs(me?.id,selP);
     const myRole=getMemberRole(me?.id,selP);

@@ -269,6 +269,7 @@ export default function App(){
   const [loading, setLoading] = useState(true);
   const [expandedUnitPhases, setExpandedUnitPhases] = useState({});
   const [expandedWeeks, setExpandedWeeks] = useState({});
+  const [supabaseSt, setSupabaseSt] = useState(""); // "" | "ok" | "fail"
   const supabaseLoadedRef = useRef(false);
 
   /* ── localStorage 앱 캐시 헬퍼 ── */
@@ -295,6 +296,7 @@ export default function App(){
       try{
         // Supabase = 진실의 원천 → 항상 Supabase에서 로드
         const{users:u,projs:p,tasks:t,docs:d}=await loadAll();
+        setSupabaseSt("ok");
         setUsers(u.length?u:INIT_USERS);
 
         if(p.length){
@@ -307,7 +309,9 @@ export default function App(){
           seedInitialData(INIT_USERS,INIT_PROJS,INIT_TASKS,INIT_DOCS);
         }
         // Supabase 비어있고 캐시 있음 → lsCache 유지 (위에서 이미 set)
-      }catch{
+      }catch(e){
+        console.error('[prosync] Supabase loadAll failed:', e);
+        setSupabaseSt("fail");
         setUsers(INIT_USERS);
         if(!lsCache){setProjs(INIT_PROJS);setTasks(INIT_TASKS);setDocs(INIT_DOCS);}
       }finally{setLoading(false);}
@@ -373,8 +377,16 @@ export default function App(){
       setMe(u);setPage("dash");
       setRF({name:"",email:"",password:"",pw2:""});
     }catch(err){
-      setRE(err?.message?.includes('unique')||err?.message?.includes('duplicate')
+      console.error('[prosync] register error:', err);
+      const m=err?.message||'';
+      setRE(m.includes('unique')||m.includes('duplicate')||m.includes('23505')
         ?"이미 사용 중인 이메일입니다."
+        :m.includes('permission')||m.includes('42501')
+        ?"권한 오류 — Supabase GRANT 미설정 (관리자 문의)"
+        :m.includes('fetch')||m.includes('Failed to fetch')||m.includes('NetworkError')
+        ?"연결 실패 — Supabase URL/Key 확인 필요"
+        :m
+        ?"오류: "+m.slice(0,120)
         :"회원가입에 실패했습니다. 잠시 후 다시 시도해주세요.");
     }
   }
@@ -641,6 +653,8 @@ export default function App(){
           <button onClick={()=>setPage("login")} className="flex items-center gap-1.5 text-slate-400 hover:text-white text-sm mb-5"><ArrowLeft size={14}/>로그인으로 돌아가기</button>
           <h2 className="text-white text-xl font-bold mb-4">회원가입</h2>
           <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl px-3.5 py-3 mb-5 flex gap-2"><span className="text-amber-400 text-sm">💡</span><p className="text-amber-300/80 text-xs leading-relaxed">가입 후 <b className="text-amber-300">마스터</b>가 프로젝트에 배정해야 접근할 수 있어요.</p></div>
+          {supabaseSt==="fail"&&<div className="bg-red-500/10 border border-red-500/20 rounded-xl px-3.5 py-2.5 mb-4 flex gap-2"><AlertCircle size={14} className="text-red-400 mt-0.5 shrink-0"/><p className="text-red-300/90 text-xs leading-relaxed">⚠️ Supabase 연결 실패 — 회원가입이 작동하지 않을 수 있습니다.</p></div>}
+          {supabaseSt==="ok"&&<div className="bg-green-500/10 border border-green-500/20 rounded-xl px-3.5 py-2 mb-4"><p className="text-green-400 text-xs">✓ DB 연결됨</p></div>}
           <div className="space-y-4">
             <div><label className="text-slate-300 text-sm block mb-1.5">이름</label><input value={rf.name} onChange={e=>setRF({...rf,name:e.target.value})} placeholder="이름" className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-slate-500 focus:outline-none focus:border-indigo-400 text-sm"/></div>
             <div><label className="text-slate-300 text-sm block mb-1.5">이메일</label><input type="email" value={rf.email} onChange={e=>setRF({...rf,email:e.target.value})} placeholder="이메일" className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-slate-500 focus:outline-none focus:border-indigo-400 text-sm"/></div>

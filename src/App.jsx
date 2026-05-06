@@ -1461,11 +1461,6 @@ export default function App(){
         {modal==="addTask"&&<Sheet title="업무(Task) 추가" onClose={()=>setModal(null)} wide>
           <div className="space-y-4">
             <Fl label="업무 제목"><input className={IC} placeholder="업무 이름" value={newTask.title} onChange={e=>setNewTask({...newTask,title:e.target.value})}/></Fl>
-            <Fl label="역할">
-              <div className="grid grid-cols-4 gap-2">
-                {["기획","서버","디자인","공통"].map(r=><button key={r} onClick={()=>setNewTask({...newTask,role:r})} className={`py-2 rounded-xl text-xs font-bold border transition-all ${newTask.role===r?"bg-indigo-500 text-white border-indigo-500":"border-slate-200 text-slate-500 hover:border-indigo-300"}`}>{r}</button>)}
-              </div>
-            </Fl>
             <Fl label="담당자">
               <select className={IC} value={newTask.uid} onChange={e=>setNewTask({...newTask,uid:e.target.value})}>
                 <option value="">담당자 선택</option>

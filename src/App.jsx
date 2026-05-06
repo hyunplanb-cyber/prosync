@@ -28,7 +28,7 @@ function isActiveInWeek(ts,te,ws,we){return ts&&te&&ts<=we&&te>=ws;}
 const nid=()=>crypto.randomUUID();
 
 /* ── 노션 로드맵 파싱 ────────────────────────────────────────────── */
-const PHASE_COLORS=["#6366f1","#8b5cf6","#10b981","#f59e0b","#ef4444"];
+const PHASE_COLORS=["#6d75c9","#9175c2","#3da882","#d4943a","#c95f5f","#4e8fbf","#5baa8a","#a0a0b8"];
 function buildNotionTasks(pid){
   const t=[];
   const defs=[

@@ -986,7 +986,7 @@ export default function App(){
         return(
           <div>
             {projTasks.filter(t=>t.depth===1).map(t=>renderTask(t,selP.color,null))}
-            {isMaster()&&<button onClick={()=>{setNewPhase({title:"",desc:"",ts:selP.start,te:selP.end,color:"#6366f1"});setModal("addPhase");}} className="mt-3 w-full border-2 border-dashed border-slate-200 hover:border-indigo-300 text-slate-400 hover:text-indigo-500 py-3 rounded-xl text-sm font-semibold flex items-center justify-center gap-2 transition-colors"><Plus size={14}/>Phase 추가</button>}
+            {(isMaster()||getMemberIds(selP).some(id=>id==me?.id))&&<button onClick={()=>{setNewPhase({title:"",desc:"",ts:selP.start,te:selP.end,color:selP.color||"#6366f1"});setModal("addPhase");}} className="mt-3 w-full border-2 border-dashed border-slate-200 hover:border-indigo-300 text-slate-400 hover:text-indigo-500 py-3 rounded-xl text-sm font-semibold flex items-center justify-center gap-2 transition-colors"><Plus size={14}/>Phase 추가</button>}
           </div>
         );
       }
@@ -1023,7 +1023,7 @@ export default function App(){
                       {(isMaster()||getMemberIds(selP).some(id=>id==me?.id))&&(// eslint-disable-line eqeqeq
                         <div className="flex items-center gap-1 ml-2">
                           <button onClick={e=>{e.stopPropagation();setNewTask({title:"",role:"기획",uid:getMemberIds(selP)[0]||"",desc:"",ts:ph.ts,te:ph.te});setParentCtx(ph.id);setModal("addTask");}} title="Task 추가" className="w-7 h-7 flex items-center justify-center bg-white/20 hover:bg-white/30 rounded-lg"><Plus size={13}/></button>
-                          {isMaster()&&<button onClick={e=>{e.stopPropagation();setEditItem({...ph});setModal("editPhase");}} title="Phase 수정" className="w-7 h-7 flex items-center justify-center bg-white/20 hover:bg-white/30 rounded-lg"><Edit2 size={12}/></button>}
+                          <button onClick={e=>{e.stopPropagation();setEditItem({...ph});setModal("editPhase");}} title="Phase 수정" className="w-7 h-7 flex items-center justify-center bg-white/20 hover:bg-white/30 rounded-lg"><Edit2 size={12}/></button>
                           {isMaster()&&<button onClick={e=>{e.stopPropagation();doDeletePhase(ph.id);}} title="Phase 삭제" className="w-7 h-7 flex items-center justify-center bg-white/20 hover:bg-red-400/40 rounded-lg"><Trash2 size={12}/></button>}
                         </div>
                       )}
@@ -1046,7 +1046,7 @@ export default function App(){
             );
           })}
           {/* Phase 추가 버튼 */}
-          {isMaster()&&<button onClick={()=>{setNewPhase({title:"",desc:"",ts:selP.start,te:selP.end,color:"#6366f1"});setModal("addPhase");}} className="w-full border-2 border-dashed border-slate-200 hover:border-indigo-300 text-slate-400 hover:text-indigo-500 py-3 rounded-xl text-sm font-semibold flex items-center justify-center gap-2 transition-colors mt-2"><Plus size={14}/>Phase 추가</button>}
+          {(isMaster()||getMemberIds(selP).some(id=>id==me?.id))&&<button onClick={()=>{setNewPhase({title:"",desc:"",ts:selP.start,te:selP.end,color:selP.color||"#6366f1"});setModal("addPhase");}} className="w-full border-2 border-dashed border-slate-200 hover:border-indigo-300 text-slate-400 hover:text-indigo-500 py-3 rounded-xl text-sm font-semibold flex items-center justify-center gap-2 transition-colors mt-2"><Plus size={14}/>Phase 추가</button>}
         </div>
       );
     }
@@ -1309,9 +1309,9 @@ export default function App(){
                     <h2 className="font-bold text-slate-800">일정 목록</h2>
                     {!isMaster()&&<p className="text-xs text-slate-400 mt-0.5">✏️ 본인 담당 업무만 수정 가능</p>}
                   </div>
-                  {isMaster()&&(
+                  {(isMaster()||getMemberIds(selP).some(id=>id==me?.id))&&(
                     <button
-                      onClick={()=>{setNewPhase({title:"",desc:"",ts:selP.start,te:selP.end,color:"#6366f1"});setModal("addPhase");}}
+                      onClick={()=>{setNewPhase({title:"",desc:"",ts:selP.start,te:selP.end,color:selP.color||"#6366f1"});setModal("addPhase");}}
                       className="flex items-center gap-1.5 bg-indigo-500 hover:bg-indigo-600 active:bg-indigo-700 text-white px-3 py-2.5 rounded-xl text-xs font-bold transition-colors">
                       <Plus size={13}/>Phase 추가
                     </button>
@@ -1418,13 +1418,16 @@ export default function App(){
           <div className="space-y-4">
             <Fl label="Phase 명"><input className={IC} placeholder="예: Phase 1 — 기획 단계" value={newPhase.title} onChange={e=>setNewPhase({...newPhase,title:e.target.value})}/></Fl>
             <Fl label="설명"><textarea className={IC+" resize-none"} rows={2} placeholder="이 Phase의 목표" value={newPhase.desc} onChange={e=>setNewPhase({...newPhase,desc:e.target.value})}/></Fl>
-            <div className="grid grid-cols-2 gap-3">
-              <Fl label="시작일"><input type="date" className={IC} value={newPhase.ts} onChange={e=>setNewPhase({...newPhase,ts:e.target.value})}/></Fl>
-              <Fl label="종료일"><input type="date" className={IC} value={newPhase.te} onChange={e=>setNewPhase({...newPhase,te:e.target.value})}/></Fl>
-            </div>
-            <Fl label="색상">
-              <div className="flex gap-2 mt-1">{PHASE_COLORS.map(c=><button key={c} onClick={()=>setNewPhase({...newPhase,color:c})} className={`w-8 h-8 rounded-full transition-all ${newPhase.color===c?"ring-2 ring-offset-2 ring-indigo-400 scale-110":""}`} style={{backgroundColor:c}}/>)}</div>
-            </Fl>
+            {isMaster()&&<>
+              <div className="grid grid-cols-2 gap-3">
+                <Fl label="시작일"><input type="date" className={IC} value={newPhase.ts} onChange={e=>setNewPhase({...newPhase,ts:e.target.value})}/></Fl>
+                <Fl label="종료일"><input type="date" className={IC} value={newPhase.te} onChange={e=>setNewPhase({...newPhase,te:e.target.value})}/></Fl>
+              </div>
+              <Fl label="색상">
+                <div className="flex gap-2 mt-1">{PHASE_COLORS.map(c=><button key={c} onClick={()=>setNewPhase({...newPhase,color:c})} className={`w-8 h-8 rounded-full transition-all ${newPhase.color===c?"ring-2 ring-offset-2 ring-indigo-400 scale-110":""}`} style={{backgroundColor:c}}/>)}</div>
+              </Fl>
+            </>}
+            {!isMaster()&&<p className="text-xs text-slate-400">기간은 하위 업무 날짜에서 자동으로 계산됩니다.</p>}
           </div>
           <div className="flex gap-3 mt-5"><BtnGhost onClick={()=>setModal(null)} className="flex-1">취소</BtnGhost><BtnPrimary onClick={doAddPhase} className="flex-1">추가</BtnPrimary></div>
         </Sheet>}
@@ -1434,11 +1437,14 @@ export default function App(){
           <div className="space-y-4">
             <Fl label="Phase 명"><input className={IC} value={editItem.title} onChange={e=>setEditItem({...editItem,title:e.target.value})}/></Fl>
             <Fl label="설명"><textarea className={IC+" resize-none"} rows={2} value={editItem.desc} onChange={e=>setEditItem({...editItem,desc:e.target.value})}/></Fl>
-            <div className="grid grid-cols-2 gap-3">
-              <Fl label="시작일"><input type="date" className={IC} value={editItem.ts} onChange={e=>setEditItem({...editItem,ts:e.target.value})}/></Fl>
-              <Fl label="종료일"><input type="date" className={IC} value={editItem.te} onChange={e=>setEditItem({...editItem,te:e.target.value})}/></Fl>
-            </div>
-            <Fl label="색상"><div className="flex gap-2 mt-1">{PHASE_COLORS.map(c=><button key={c} onClick={()=>setEditItem({...editItem,color:c})} className={`w-8 h-8 rounded-full transition-all ${editItem.color===c?"ring-2 ring-offset-2 ring-indigo-400 scale-110":""}`} style={{backgroundColor:c}}/>)}</div></Fl>
+            {isMaster()&&<>
+              <div className="grid grid-cols-2 gap-3">
+                <Fl label="시작일"><input type="date" className={IC} value={editItem.ts} onChange={e=>setEditItem({...editItem,ts:e.target.value})}/></Fl>
+                <Fl label="종료일"><input type="date" className={IC} value={editItem.te} onChange={e=>setEditItem({...editItem,te:e.target.value})}/></Fl>
+              </div>
+              <Fl label="색상"><div className="flex gap-2 mt-1">{PHASE_COLORS.map(c=><button key={c} onClick={()=>setEditItem({...editItem,color:c})} className={`w-8 h-8 rounded-full transition-all ${editItem.color===c?"ring-2 ring-offset-2 ring-indigo-400 scale-110":""}`} style={{backgroundColor:c}}/>)}</div></Fl>
+            </>}
+            {!isMaster()&&(()=>{const dr=calcPhaseDR(editItem.id,tasks,"t");return dr?.s||dr?.e?<p className="text-xs text-slate-500">기간: {fd(dr?.s)} ~ {fd(dr?.e)} (하위 업무에서 자동 계산)</p>:<p className="text-xs text-slate-400">기간은 하위 업무 날짜에서 자동으로 계산됩니다.</p>;})()}
           </div>
           <div className="flex gap-3 mt-5"><BtnGhost onClick={()=>setModal(null)} className="flex-1">취소</BtnGhost><BtnPrimary onClick={doEditPhase} className="flex-1">저장</BtnPrimary></div>
         </Sheet>}

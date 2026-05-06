@@ -1112,13 +1112,21 @@ export default function App(){
             const isPast=w.end<today,isCurrent=w.start<=today&&w.end>=today,isFuture=w.start>today;
             // 미래 주차는 진척율 0 — 아직 도래하지 않음
             const asOf=isCurrent?today:w.end;
-            const activeTasks=allTasks.filter(t=>isActiveInWeek(t.ts,t.te,w.start,w.end));
+            const activeTasks=allTasks.filter(t=>{
+              const tDR=calcTaskDR(t.id,projTasks,"t");
+              const ets=tDR?.s||t.ts,ete=tDR?.e||t.te;
+              return isActiveInWeek(ets,ete,w.start,w.end);
+            });
             let tw=0,wpT=0,wpC=0;
             if(!isFuture){
               allTasks.forEach(t=>{
-                const d=countWD(t.ts,t.te)||1; tw+=d;
-                wpT+=calcPctAt(t.ts,t.te,w.end)*d;
-                wpC+=calcPctAt(t.cs,t.ce,asOf)*d;
+                const tDR=calcTaskDR(t.id,projTasks,"t");
+                const cDR=calcTaskDR(t.id,projTasks,"c");
+                const ets=tDR?.s||t.ts,ete=tDR?.e||t.te;
+                const ecs=cDR?.s||t.cs,ece=cDR?.e||t.ce;
+                const d=countWD(ets,ete)||1; tw+=d;
+                wpT+=calcPctAt(ets,ete,w.end)*d;
+                wpC+=calcPctAt(ecs,ece,asOf)*d;
               });
             }
             const wTP=tw?Math.round(wpT/tw):0, wCP=tw?Math.round(wpC/tw):0;
@@ -1151,19 +1159,26 @@ export default function App(){
                     {activeTasks.length>0&&(
                       <div className="divide-y divide-slate-50">
                         {activeTasks.map(t=>{
+                          const tDRt=calcTaskDR(t.id,projTasks,"t");
+                          const cDRt=calcTaskDR(t.id,projTasks,"c");
+                          const effTs=tDRt?.s||t.ts,effTe=tDRt?.e||t.te;
+                          const effCs=cDRt?.s||t.cs,effCe=cDRt?.e||t.ce;
                           const ph=projTasks.find(x=>x.id===t.parentId);
                           const phC=ph?.color||selP.color;
                           const asOfTask=isFuture?w.end:isCurrent?today:w.end;
-                          const tCP=calcPctAt(t.cs,t.ce,asOfTask);
+                          const tCP=calcPctAt(effCs,effCe,asOfTask);
                           const subs=projTasks.filter(s=>s.parentId===t.id).sort((a,b)=>(a.ts||'').localeCompare(b.ts||''));
                           const activeSubs=subs.filter(s=>isActiveInWeek(s.ts,s.te,w.start,w.end)||isActiveInWeek(s.cs,s.ce,w.start,w.end));
                           return(
                             <div key={t.id}>
                               <div className="px-4 py-3 flex items-center gap-3">
                                 <div className="w-1 h-8 rounded-full flex-shrink-0" style={{backgroundColor:phC}}/>
-                                <div className="flex items-center gap-1.5 flex-1 min-w-0 flex-wrap">
-                                  {t.role&&<RTag r={t.role}/>}
-                                  <span className="text-xs font-bold text-slate-700 truncate">{t.title}</span>
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center gap-1.5 flex-wrap">
+                                    {t.role&&<RTag r={t.role}/>}
+                                    <span className="text-xs font-bold text-slate-700 truncate">{t.title}</span>
+                                  </div>
+                                  <p className="text-[11px] text-slate-400 mt-0.5">🎯 {fd(effTs)} ~ {fd(effTe)}{(effCs!==effTs||effCe!==effTe)?<span className="text-orange-400 ml-1.5">📊 {fd(effCs)} ~ {fd(effCe)}</span>:null}</p>
                                 </div>
                                 <div className="flex items-center gap-3 flex-shrink-0">
                                   <Av n={uN(t.uid)} sz="w-6 h-6" ts="text-[10px]"/>
@@ -1178,10 +1193,13 @@ export default function App(){
                                   {(activeSubs.length>0?activeSubs:subs).map(s=>{
                                     const sCP=isFuture?0:calcPctAt(s.cs,s.ce,asOfTask);
                                     return(
-                                      <div key={s.id} className="px-5 sm:px-6 py-2.5 flex items-center gap-2.5">
+                                      <div key={s.id} className="px-5 sm:px-6 py-2 flex items-center gap-2.5">
                                         <div className="w-3 flex-shrink-0"/>
                                         {s.status==="완료"?<CheckSquare size={13} className="text-emerald-500 flex-shrink-0"/>:<Square size={13} className="text-slate-300 flex-shrink-0"/>}
-                                        <span className={`flex-1 text-xs min-w-0 truncate ${s.status==="완료"?"line-through text-slate-400":"text-slate-600"}`}>{s.title}</span>
+                                        <div className="flex-1 min-w-0">
+                                          <p className={`text-xs truncate ${s.status==="완료"?"line-through text-slate-400":"text-slate-600"}`}>{s.title}</p>
+                                          {(s.cs||s.ce)&&<p className="text-[11px] text-slate-400 mt-0.5">{fd(s.cs)} ~ {fd(s.ce)}</p>}
+                                        </div>
                                         <span className="text-[11px] font-bold text-slate-400 flex-shrink-0 w-8 text-right">{isFuture?"—":sCP+"%"}</span>
                                       </div>
                                     );
@@ -1309,19 +1327,24 @@ export default function App(){
                           </button>
                           {isOpen&&<div className="divide-y divide-slate-50">
                             {phTasks.map(t=>{
-                              const tTp=calcPct(t.ts,t.te),tCp=calcPct(t.cs,t.ce),delayed=t.cs&&t.ce&&t.ts&&t.te&&new Date(t.ce)>new Date(t.te);
+                              const tDR=calcTaskDR(t.id,projTasks,"t");
+                              const cDR=calcTaskDR(t.id,projTasks,"c");
+                              const effTs=tDR?.s||t.ts,effTe=tDR?.e||t.te;
+                              const effCs=cDR?.s||t.cs,effCe=cDR?.e||t.ce;
+                              const tTp=calcPct(effTs,effTe),tCp=calcPct(effCs,effCe);
+                              const delayed=effCs&&effCe&&effTs&&effTe&&new Date(effCe)>new Date(effTe);
                               const subs=projTasks.filter(s=>s.parentId===t.id).sort((a,b)=>(a.ts||'').localeCompare(b.ts||''));
                               return(
                                 <div key={t.id} className="p-4">
-                                  <div className="flex items-center justify-between mb-3">
+                                  <div className="flex items-center justify-between mb-2">
                                     <div className="flex items-center gap-2 flex-wrap"><Av n={uN(t.uid)} sz="w-6 h-6" ts="text-[10px]"/>{t.role&&<RTag r={t.role}/>}<p className="font-semibold text-slate-800 text-sm">{t.title}</p></div>
                                     {delayed&&<span className="text-[11px] px-2 py-0.5 rounded-full bg-orange-100 text-orange-600 font-bold">⚠지연</span>}
                                   </div>
                                   <div className="grid grid-cols-2 gap-3 mb-3">
-                                    <div><div className="flex justify-between text-xs mb-1"><span className="text-slate-400">목표</span><span className="font-bold" style={{color:ph.color||selP.color}}>{tTp}%</span></div><Bar v={tTp} color={ph.color||selP.color} h="h-2"/><p className="text-slate-300 text-[10px] mt-1">{countWD(t.ts,t.te)}일</p></div>
-                                    <div><div className="flex justify-between text-xs mb-1"><span className="text-slate-400">현황</span><span className="font-bold text-slate-600">{tCp}%</span></div><Bar v={tCp} color="#94a3b8" h="h-2"/><p className="text-slate-300 text-[10px] mt-1">{countWD(t.cs,t.ce)}일</p></div>
+                                    <div><div className="flex justify-between text-xs mb-1"><span className="text-slate-400">목표</span><span className="font-bold" style={{color:ph.color||selP.color}}>{tTp}%</span></div><Bar v={tTp} color={ph.color||selP.color} h="h-2"/><p className="text-slate-300 text-[10px] mt-1">{fd(effTs)} ~ {fd(effTe)} ({countWD(effTs,effTe)}일)</p></div>
+                                    <div><div className="flex justify-between text-xs mb-1"><span className="text-slate-400">현황</span><span className="font-bold text-slate-600">{tCp}%</span></div><Bar v={tCp} color="#94a3b8" h="h-2"/><p className="text-slate-300 text-[10px] mt-1">{fd(effCs)} ~ {fd(effCe)} ({countWD(effCs,effCe)}일)</p></div>
                                   </div>
-                                  {subs.length>0&&<div className="space-y-1 pl-2 border-l-2" style={{borderColor:(ph.color||selP.color)+"44"}}>{subs.map(s=><div key={s.id} className="flex items-center gap-2 py-1">{s.status==="완료"?<CheckSquare size={12} className="text-emerald-500 flex-shrink-0"/>:<Square size={12} className="text-slate-300 flex-shrink-0"/>}<span className={`text-xs flex-1 truncate ${s.status==="완료"?"line-through text-slate-400":"text-slate-600"}`}>{s.title}</span><span className="text-[11px] text-slate-400">{calcPct(s.cs,s.ce)}%</span></div>)}</div>}
+                                  {subs.length>0&&<div className="space-y-1.5 pl-2 border-l-2 mt-2" style={{borderColor:(ph.color||selP.color)+"44"}}>{subs.map(s=><div key={s.id} className="flex items-center gap-2 py-1">{s.status==="완료"?<CheckSquare size={12} className="text-emerald-500 flex-shrink-0"/>:<Square size={12} className="text-slate-300 flex-shrink-0"/>}<span className={`text-xs flex-1 min-w-0 truncate ${s.status==="완료"?"line-through text-slate-400":"text-slate-600"}`}>{s.title}</span><span className="text-[11px] text-slate-300 flex-shrink-0 hidden sm:inline">{fd(s.cs)} ~ {fd(s.ce)}</span><span className="text-[11px] font-bold text-slate-400 flex-shrink-0 w-7 text-right">{calcPct(s.cs,s.ce)}%</span></div>)}</div>}
                                 </div>
                               );
                             })}

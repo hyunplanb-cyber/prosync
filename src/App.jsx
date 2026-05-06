@@ -673,12 +673,12 @@ export default function App(){
   function canEdit(t){
     if(!me) return false;
     if(me.role==="master") return true;
-    // 공석(VACANT) 태스크: 해당 프로젝트 멤버 누구나 수정 가능
     // eslint-disable-next-line eqeqeq
     if(t.uid==VACANT_ID) return selP&&getMemberIds(selP).some(id=>id==me.id);
-    // 담당자이거나 직접 생성한 업무면 수정 가능
     // eslint-disable-next-line eqeqeq
-    return t.uid==me.id||t.createdBy==me.id;
+    const ok=t.uid==me.id||t.createdBy==me.id;
+    if(!ok) console.log('[canEdit] DENIED',{taskId:t.id,title:t.title,'t.uid':t.uid,'t.uid type':typeof t.uid,'me.id':me.id,'me.id type':typeof me.id,'createdBy':t.createdBy});
+    return ok;
   }
   function isMaster(){return me?.role==="master";}
   const navP={me,page,side,setSide,setPage,setModal,logout};

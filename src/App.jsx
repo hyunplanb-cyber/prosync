@@ -1022,7 +1022,7 @@ export default function App(){
                         <div className="flex items-center gap-1 ml-2">
                           <button onClick={e=>{e.stopPropagation();setNewTask({title:"",role:"기획",uid:getMemberIds(selP)[0]||"",desc:"",ts:ph.ts,te:ph.te});setParentCtx(ph.id);setModal("addTask");}} title="Task 추가" className="w-7 h-7 flex items-center justify-center bg-white/20 hover:bg-white/30 rounded-lg"><Plus size={13}/></button>
                           <button onClick={e=>{e.stopPropagation();setEditItem({...ph});setModal("editPhase");}} title="Phase 수정" className="w-7 h-7 flex items-center justify-center bg-white/20 hover:bg-white/30 rounded-lg"><Edit2 size={12}/></button>
-                          {isMaster()&&<button onClick={e=>{e.stopPropagation();doDeletePhase(ph.id);}} title="Phase 삭제" className="w-7 h-7 flex items-center justify-center bg-white/20 hover:bg-red-400/40 rounded-lg"><Trash2 size={12}/></button>}
+                          {(isMaster()||ph.createdBy==me?.id)&&<button onClick={e=>{e.stopPropagation();doDeletePhase(ph.id);}} title="Phase 삭제" className="w-7 h-7 flex items-center justify-center bg-white/20 hover:bg-red-400/40 rounded-lg"><Trash2 size={12}/></button>}{/* eslint-disable-line eqeqeq */}
                         </div>
                       )}
                     </div>

@@ -1068,7 +1068,6 @@ export default function App(){
               </button>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 flex-wrap mb-1">
-                  {t.role&&<RTag r={t.role}/>}
                   <span className="font-bold text-slate-800 text-sm">{t.title}</span>
                   <STag s={status}/>
                   {delayed&&<span className="text-[10px] px-1.5 py-0.5 rounded-full bg-orange-100 text-orange-600 font-bold">⚠지연</span>}
@@ -1199,7 +1198,6 @@ export default function App(){
                                 <div className="w-1 h-8 rounded-full flex-shrink-0" style={{backgroundColor:phC}}/>
                                 <div className="flex-1 min-w-0">
                                   <div className="flex items-center gap-1.5 flex-wrap">
-                                    {t.role&&<RTag r={t.role}/>}
                                     <span className="text-xs font-bold text-slate-700 truncate">{t.title}</span>
                                   </div>
                                   <p className="text-[11px] text-slate-400 mt-0.5">🎯 {fd(effTs)} ~ {fd(effTe)}{(effCs!==effTs||effCe!==effTe)?<span className="text-orange-400 ml-1.5">📊 {fd(effCs)} ~ {fd(effCe)}</span>:null}</p>
@@ -1371,7 +1369,7 @@ export default function App(){
                               return(
                                 <div key={t.id} className="p-4">
                                   <div className="flex items-center justify-between mb-2">
-                                    <div className="flex items-center gap-2 flex-wrap"><Av n={uN(t.uid)} sz="w-6 h-6" ts="text-[10px]"/>{t.role&&<RTag r={t.role}/>}<p className="font-semibold text-slate-800 text-sm">{t.title}</p></div>
+                                    <div className="flex items-center gap-2 flex-wrap"><Av n={uN(t.uid)} sz="w-6 h-6" ts="text-[10px]"/><p className="font-semibold text-slate-800 text-sm">{t.title}</p></div>
                                     {delayed&&<span className="text-[11px] px-2 py-0.5 rounded-full bg-orange-100 text-orange-600 font-bold">⚠지연</span>}
                                   </div>
                                   <div className="grid grid-cols-2 gap-3 mb-3">

@@ -312,6 +312,7 @@ export default function App(){
   const supabaseLoadedRef = useRef(false);
   const [editProj,  setEditProj]  = useState(null);
   const [projColor, setProjColor] = useState("#6366f1");
+  const [filterUid, setFilterUid] = useState(null);
 
   /* ── localStorage 앱 캐시 헬퍼 ── */
   function lsGetAppCache(){
@@ -493,7 +494,7 @@ export default function App(){
     // 접근 가능한 첫 번째 탭으로
     const allowedTabs=me?.role==="master"?["schedule","progress","documents"]:getMemberTabs(me?.id,p);
     setTab(allowedTabs[0]||"schedule");
-    setSelDoc(null);setPage("proj");
+    setSelDoc(null);setPage("proj");setFilterUid(null);
   }
 
   /* ── Notion ── */
@@ -972,7 +973,10 @@ export default function App(){
   /* ══════════ PROJECT DETAIL ══════════════════════════════════════ */
   if(page==="proj"&&selP){
     const projTasks=tasks.filter(t=>t.pid===selP.id);
-    const phases=projTasks.filter(t=>t.depth===0).sort((a,b)=>(a.ts||'').localeCompare(b.ts||''));
+    const phases=projTasks.filter(t=>t.depth===0).sort((a,b)=>{
+      const adr=calcPhaseDR(a.id,projTasks,"t"),bdr=calcPhaseDR(b.id,projTasks,"t");
+      return (adr?.s||a.ts||'').localeCompare(bdr?.s||b.ts||'');
+    });
     const tTotal=projPct(tasks,selP.id,"t"), cTotal=projPct(tasks,selP.id,"c");
     // 멤버 목록 (새 구조 지원)
     const mem=getMemberIds(selP).map(id=>users.find(u=>String(u.id)===String(id))).filter(Boolean);
@@ -985,16 +989,16 @@ export default function App(){
       if(phases.length===0){
         return(
           <div>
-            {projTasks.filter(t=>t.depth===1).map(t=>renderTask(t,selP.color,null))}
+            {projTasks.filter(t=>t.depth===1&&(!filterUid||t.uid==filterUid)).map(t=>renderTask(t,selP.color,null))}{/* eslint-disable-line eqeqeq */}
             {(isMaster()||getMemberIds(selP).some(id=>id==me?.id))&&<button onClick={()=>{setNewPhase({title:"",desc:"",ts:selP.start,te:selP.end,color:selP.color||"#6366f1"});setModal("addPhase");}} className="mt-3 w-full border-2 border-dashed border-slate-200 hover:border-indigo-300 text-slate-400 hover:text-indigo-500 py-3 rounded-xl text-sm font-semibold flex items-center justify-center gap-2 transition-colors"><Plus size={14}/>Phase 추가</button>}
           </div>
         );
       }
       return(
         <div>
-          {phases.map(ph=>{
+          {phases.filter(ph=>!filterUid||projTasks.some(t=>t.parentId===ph.id&&t.uid==filterUid)).map(ph=>{// eslint-disable-line eqeqeq
             const phTp=treePct(projTasks,ph.id,"t"), phCp=treePct(projTasks,ph.id,"c");
-            const phTasks=projTasks.filter(t=>t.parentId===ph.id).sort((a,b)=>(a.ts||'').localeCompare(b.ts||''));
+            const phTasks=projTasks.filter(t=>t.parentId===ph.id&&(!filterUid||t.uid==filterUid)).sort((a,b)=>(a.ts||'').localeCompare(b.ts||''));// eslint-disable-line eqeqeq
             // Phase 날짜 자동 산출
             const phTDR=calcPhaseDR(ph.id,projTasks,"t");
             const phCDR=calcPhaseDR(ph.id,projTasks,"c");
@@ -1317,6 +1321,16 @@ export default function App(){
                     </button>
                   )}
                 </div>
+                {/* 담당자 필터 */}
+                {mem.length>0&&(
+                  <div className="flex items-center gap-2 mb-4 flex-wrap">
+                    <span className="text-xs text-slate-400 font-semibold shrink-0">담당자</span>
+                    <button onClick={()=>setFilterUid(null)} className={`px-2.5 py-1 rounded-full text-xs font-bold transition-all ${!filterUid?"bg-indigo-500 text-white":"bg-slate-100 text-slate-500 hover:bg-slate-200"}`}>전체</button>
+                    {mem.map(u=>(
+                      <button key={u.id} onClick={()=>setFilterUid(filterUid==u.id?null:u.id)} className={`px-2.5 py-1 rounded-full text-xs font-bold transition-all ${filterUid==u.id?"bg-indigo-500 text-white":"bg-slate-100 text-slate-500 hover:bg-slate-200"}`}>{u.name}</button>// eslint-disable-line eqeqeq
+                    ))}
+                  </div>
+                )}
                 {renderTree()}
               </div>
             )}

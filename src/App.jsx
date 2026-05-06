@@ -364,6 +364,7 @@ export default function App(){
           if(p.length){
             if(u.length)setUsers(u);
             setProjs(p);setTasks(t);setDocs(d);
+            setSelP(prev=>prev?p.find(x=>x.id===prev.id)||prev:prev);
             supabaseLoadedRef.current=true;
             lsSaveAppCache(p,t,d);
           }
@@ -643,6 +644,8 @@ export default function App(){
       const{error}=await supabase.from('tasks').upsert(taskToRow(updated));
       if(error)console.error('[prosync] doReplaceMember upsert failed',error,updated);
     }
+    const fresh=await dbLoadTasks();
+    if(fresh.length)setTasks(fresh);
     let next=null;
     setProjs(projs.map(p=>{
       if(p.id!==projId)return p;

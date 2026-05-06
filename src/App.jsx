@@ -170,13 +170,39 @@ function BotNav({me,page,setPage,setModal}){
 /* ── 진척율 계산 ─────────────────────────────────────────────────── */
 function treePct(tasks,nodeId,type){
   const ch=tasks.filter(t=>t.parentId===nodeId);
-  if(!ch.length){const n=tasks.find(t=>t.id===nodeId);if(!n)return 0;return calcPct(type==="t"?n.ts:n.cs,type==="t"?n.te:n.ce);}
-  let tw=0,wp=0;ch.forEach(c=>{const d=countWD(type==="t"?c.ts:c.cs,type==="t"?c.te:c.ce)||1;tw+=d;wp+=treePct(tasks,c.id,type)*d;});return tw?Math.round(wp/tw):0;
+  if(!ch.length){
+    const n=tasks.find(t=>t.id===nodeId);if(!n)return 0;
+    const dr=calcTaskDR(n.id,tasks,type);
+    const s=dr?.s||(type==="t"?n.ts:n.cs),e=dr?.e||(type==="t"?n.te:n.ce);
+    return calcPct(s,e);
+  }
+  let tw=0,wp=0;
+  ch.forEach(c=>{
+    const dr=calcTaskDR(c.id,tasks,type);
+    const s=dr?.s||(type==="t"?c.ts:c.cs),e=dr?.e||(type==="t"?c.te:c.ce);
+    const d=countWD(s,e)||1;tw+=d;wp+=treePct(tasks,c.id,type)*d;
+  });
+  return tw?Math.round(wp/tw):0;
 }
 function projPct(tasks,pid,type){
   const phases=tasks.filter(t=>t.pid===pid&&t.depth===0);
-  if(!phases.length){const all=tasks.filter(t=>t.pid===pid&&t.depth===1);if(!all.length)return 0;let tw=0,wp=0;all.forEach(t=>{const d=countWD(type==="t"?t.ts:t.cs,type==="t"?t.te:t.ce)||1;tw+=d;wp+=calcPct(type==="t"?t.ts:t.cs,type==="t"?t.te:t.ce)*d;});return tw?Math.round(wp/tw):0;}
-  let tw=0,wp=0;phases.forEach(p=>{const d=countWD(p.ts,p.te)||1;tw+=d;wp+=treePct(tasks,p.id,type)*d;});return tw?Math.round(wp/tw):0;
+  if(!phases.length){
+    const all=tasks.filter(t=>t.pid===pid&&t.depth===1);if(!all.length)return 0;
+    let tw=0,wp=0;
+    all.forEach(t=>{
+      const dr=calcTaskDR(t.id,tasks,type);
+      const s=dr?.s||(type==="t"?t.ts:t.cs),e=dr?.e||(type==="t"?t.te:t.ce);
+      const d=countWD(s,e)||1;tw+=d;wp+=treePct(tasks,t.id,type)*d;
+    });
+    return tw?Math.round(wp/tw):0;
+  }
+  let tw=0,wp=0;
+  phases.forEach(p=>{
+    const dr=calcPhaseDR(p.id,tasks,type);
+    const s=dr?.s||p.ts,e=dr?.e||p.te;
+    const d=countWD(s,e)||1;tw+=d;wp+=treePct(tasks,p.id,type)*d;
+  });
+  return tw?Math.round(wp/tw):0;
 }
 
 /* ── 날짜 자동 산출 / 상태 헬퍼 ────────────────────────────────────── */
@@ -993,12 +1019,12 @@ export default function App(){
                       <div className="hidden sm:block text-right"><p className="text-[10px] text-white/60">목표</p><p className="font-extrabold text-sm">{phTp}%</p></div>
                       <div className="hidden sm:block text-right"><p className="text-[10px] text-white/60">현황</p><p className="font-extrabold text-sm">{phCp}%</p></div>
                       <div className="sm:hidden font-extrabold text-sm">{phTp}%</div>
-                      {/* Phase 액션 (마스터) */}
-                      {isMaster()&&(
+                      {/* Phase 액션 */}
+                      {(isMaster()||getMemberIds(selP).some(id=>id==me?.id))&&(// eslint-disable-line eqeqeq
                         <div className="flex items-center gap-1 ml-2">
                           <button onClick={e=>{e.stopPropagation();setNewTask({title:"",role:"기획",uid:getMemberIds(selP)[0]||"",desc:"",ts:ph.ts,te:ph.te});setParentCtx(ph.id);setModal("addTask");}} title="Task 추가" className="w-7 h-7 flex items-center justify-center bg-white/20 hover:bg-white/30 rounded-lg"><Plus size={13}/></button>
-                          <button onClick={e=>{e.stopPropagation();setEditItem({...ph});setModal("editPhase");}} title="Phase 수정" className="w-7 h-7 flex items-center justify-center bg-white/20 hover:bg-white/30 rounded-lg"><Edit2 size={12}/></button>
-                          <button onClick={e=>{e.stopPropagation();doDeletePhase(ph.id);}} title="Phase 삭제" className="w-7 h-7 flex items-center justify-center bg-white/20 hover:bg-red-400/40 rounded-lg"><Trash2 size={12}/></button>
+                          {isMaster()&&<button onClick={e=>{e.stopPropagation();setEditItem({...ph});setModal("editPhase");}} title="Phase 수정" className="w-7 h-7 flex items-center justify-center bg-white/20 hover:bg-white/30 rounded-lg"><Edit2 size={12}/></button>}
+                          {isMaster()&&<button onClick={e=>{e.stopPropagation();doDeletePhase(ph.id);}} title="Phase 삭제" className="w-7 h-7 flex items-center justify-center bg-white/20 hover:bg-red-400/40 rounded-lg"><Trash2 size={12}/></button>}
                         </div>
                       )}
                     </div>

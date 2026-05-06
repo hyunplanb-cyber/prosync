@@ -66,6 +66,11 @@ CREATE TABLE IF NOT EXISTS public.documents (
 );
 
 -- ============================================================
+-- 마이그레이션: created_by 컬럼 추가 (기존 DB에 실행)
+-- ============================================================
+ALTER TABLE public.tasks ADD COLUMN IF NOT EXISTS created_by BIGINT;
+
+-- ============================================================
 -- 인덱스
 -- ============================================================
 CREATE INDEX IF NOT EXISTS idx_tasks_project_id  ON public.tasks(project_id);

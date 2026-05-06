@@ -5,7 +5,7 @@ import {
   dbLogin, dbRegister,
   dbAddProject, dbUpdateProject, dbDeleteProject,
   dbAddTask, dbAddTasks, dbUpdateTask, dbDeleteTask, dbDeleteTasks, dbDeleteProjectTasksNotManual,
-  dbAddDoc, dbDeleteDoc,
+  dbAddDoc, dbDeleteDoc, taskToRow,
 } from "./lib/db.js";
 import {
   LayoutDashboard, FolderOpen, TrendingUp, Archive, Users, LogOut,
@@ -543,7 +543,7 @@ export default function App(){
 
   /* ── Phase CRUD ── */
   function doAddPhase(){
-    const ph={id:nid(),pid:selP.id,parentId:null,depth:0,uid:me.id,title:newPhase.title,desc:newPhase.desc,ts:newPhase.ts,te:newPhase.te,cs:newPhase.ts,ce:newPhase.te,status:"예정",color:newPhase.color,del:[],expanded:true,_manual:true};
+    const ph={id:nid(),pid:selP.id,parentId:null,depth:0,uid:me.id,createdBy:me.id,title:newPhase.title,desc:newPhase.desc,ts:newPhase.ts,te:newPhase.te,cs:newPhase.ts,ce:newPhase.te,status:"예정",color:newPhase.color,del:[],expanded:true,_manual:true};
     setTasks([...tasks,ph]);dbAddTask(ph);
     setNewPhase({title:"",desc:"",ts:"",te:"",color:"#6366f1"});setModal(null);
   }
@@ -564,7 +564,7 @@ export default function App(){
   /* ── Task CRUD ── */
   function doAddTask(){
     const ph=tasks.find(t=>t.id===parentCtx);
-    const tk={id:nid(),pid:selP.id,parentId:parentCtx,depth:1,uid:parseInt(newTask.uid)||me.id,title:newTask.title,role:newTask.role,desc:newTask.desc,ts:newTask.ts||ph?.ts||"",te:newTask.te||ph?.te||"",cs:newTask.ts||ph?.ts||"",ce:newTask.te||ph?.te||"",status:"예정",del:[],expanded:true,_manual:true};
+    const tk={id:nid(),pid:selP.id,parentId:parentCtx,depth:1,uid:parseInt(newTask.uid)||me.id,createdBy:me.id,title:newTask.title,role:newTask.role,desc:newTask.desc,ts:newTask.ts||ph?.ts||"",te:newTask.te||ph?.te||"",cs:newTask.ts||ph?.ts||"",ce:newTask.te||ph?.te||"",status:"예정",del:[],expanded:true,_manual:true};
     setTasks([...tasks,tk]);dbAddTask(tk);
     setNewTask({title:"",role:"기획",uid:"",desc:"",ts:"",te:""});setParentCtx(null);setModal(null);
   }
@@ -584,7 +584,7 @@ export default function App(){
   /* ── SubTask CRUD ── */
   function doAddSub(){
     const parent=tasks.find(t=>t.id===parentCtx);
-    const s={id:nid(),pid:selP.id,parentId:parentCtx,depth:2,uid:parent?.uid||me.id,title:newSub.title,desc:newSub.desc,ts:newSub.ts||parent?.ts||"",te:newSub.te||parent?.te||"",cs:newSub.ts||parent?.ts||"",ce:newSub.te||parent?.te||"",status:"예정",del:[],_manual:true};
+    const s={id:nid(),pid:selP.id,parentId:parentCtx,depth:2,uid:parent?.uid||me.id,createdBy:me.id,title:newSub.title,desc:newSub.desc,ts:newSub.ts||parent?.ts||"",te:newSub.te||parent?.te||"",cs:newSub.ts||parent?.ts||"",ce:newSub.te||parent?.te||"",status:"예정",del:[],_manual:true};
     setTasks([...tasks,s]);dbAddTask(s);
     setNewSub({title:"",desc:"",ts:"",te:""});setParentCtx(null);setModal(null);
   }
@@ -632,13 +632,17 @@ export default function App(){
   }
 
   /* ── 멤버 교체: 해당 프로젝트의 모든 업무를 신규 멤버로 이전 ── */
-  function doReplaceMember(projId, oldUid, newUid, cfg){
+  async function doReplaceMember(projId, oldUid, newUid, cfg){
     const affected=tasks.filter(t=>t.pid===projId&&String(t.uid)===String(oldUid));
     setTasks(tasks.map(t=>{
       if(t.pid!==projId||String(t.uid)!==String(oldUid))return t;
       return {...t,uid:newUid};
     }));
-    affected.forEach(t=>dbUpdateTask({...t,uid:newUid}));
+    for(const t of affected){
+      const updated={...t,uid:newUid};
+      const{error}=await supabase.from('tasks').upsert(taskToRow(updated));
+      if(error)console.error('[prosync] doReplaceMember upsert failed',error,updated);
+    }
     let next=null;
     setProjs(projs.map(p=>{
       if(p.id!==projId)return p;
@@ -666,9 +670,12 @@ export default function App(){
   function canEdit(t){
     if(!me) return false;
     if(me.role==="master") return true;
-    if(!t.uid||t.uid===0) return false;
+    // 공석(VACANT) 태스크: 해당 프로젝트 멤버 누구나 수정 가능
     // eslint-disable-next-line eqeqeq
-    return t.uid==me.id;
+    if(t.uid==VACANT_ID) return selP&&getMemberIds(selP).some(id=>id==me.id);
+    // 담당자이거나 직접 생성한 업무면 수정 가능
+    // eslint-disable-next-line eqeqeq
+    return t.uid==me.id||t.createdBy==me.id;
   }
   function isMaster(){return me?.role==="master";}
   const navP={me,page,side,setSide,setPage,setModal,logout};
@@ -1546,7 +1553,7 @@ export default function App(){
                           <MemberRoleEditor uid={VACANT_ID} mInfo={replaceTarget.cfg} onUpdate={patch=>setReplaceTarget({...replaceTarget,cfg:{...replaceTarget.cfg,...patch}})}/>
                           <div className="flex gap-2 pt-1">
                             <button onClick={()=>setReplaceTarget(null)} className="flex-1 border border-slate-200 text-slate-600 py-2 rounded-xl text-xs font-semibold hover:bg-slate-50">취소</button>
-                            <button onClick={()=>{if(!replaceTarget.cfg.newUid)return;const np=doReplaceMember(editMember.id,VACANT_ID,replaceTarget.cfg.newUid,replaceTarget.cfg);setReplaceTarget(null);if(np)setEditMember(np);}}
+                            <button onClick={async()=>{if(!replaceTarget.cfg.newUid)return;const np=await doReplaceMember(editMember.id,VACANT_ID,replaceTarget.cfg.newUid,replaceTarget.cfg);setReplaceTarget(null);if(np)setEditMember(np);}}
                               className="flex-1 bg-orange-500 hover:bg-orange-600 text-white py-2 rounded-xl text-xs font-semibold">배정 완료</button>
                           </div>
                         </div>
@@ -1605,7 +1612,7 @@ export default function App(){
                             <MemberRoleEditor uid={uid} mInfo={replaceTarget.cfg} onUpdate={patch=>setReplaceTarget({...replaceTarget,cfg:{...replaceTarget.cfg,...patch}})}/>
                             <div className="flex gap-2 pt-1">
                               <button onClick={()=>setReplaceTarget(null)} className="flex-1 border border-slate-200 text-slate-600 py-2 rounded-xl text-xs font-semibold hover:bg-slate-50">취소</button>
-                              <button onClick={()=>{if(!replaceTarget.cfg.newUid)return;const np=doReplaceMember(editMember.id,uid,replaceTarget.cfg.newUid,replaceTarget.cfg);setReplaceTarget(null);if(np)setEditMember(np);}}
+                              <button onClick={async()=>{if(!replaceTarget.cfg.newUid)return;const np=await doReplaceMember(editMember.id,uid,replaceTarget.cfg.newUid,replaceTarget.cfg);setReplaceTarget(null);if(np)setEditMember(np);}}
                                 className="flex-1 bg-indigo-500 hover:bg-indigo-600 text-white py-2 rounded-xl text-xs font-semibold">교체 완료</button>
                             </div>
                           </div>

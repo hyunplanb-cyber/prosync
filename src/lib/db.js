@@ -10,7 +10,8 @@ const rowToProj = r => ({
 
 const rowToTask = r => ({
   id: r.id, pid: r.project_id, parentId: r.parent_id, depth: r.depth,
-  uid: r.user_id, title: r.title, role: r.role, desc: r.description,
+  uid: r.user_id, createdBy: r.created_by ?? null,
+  title: r.title, role: r.role, desc: r.description,
   ts: r.task_start, te: r.task_end, cs: r.current_start, ce: r.current_end,
   status: r.status, color: r.color, expanded: r.expanded ?? true,
   del: r.deliverables ?? [], _manual: r.is_manual, _statusManual: r.status_manual,
@@ -21,12 +22,13 @@ const rowToDoc = r => ({
   files: r.files ?? [], links: r.links ?? [], at: r.document_at,
 })
 
-const taskToRow = t => ({
+export const taskToRow = t => ({
   id: t.id,
   project_id: t.pid,
   parent_id: t.parentId ?? null,
   depth: t.depth,
   user_id: t.uid ?? null,
+  created_by: t.createdBy ?? null,
   title: t.title,
   role: t.role ?? null,
   description: t.desc ?? null,

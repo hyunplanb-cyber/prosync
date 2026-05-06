@@ -730,7 +730,7 @@ export default function App(){
   if(page==="login")return(
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-indigo-950 flex items-center justify-center p-4">
       <div className="w-full max-w-sm">
-        <div className="text-center mb-8"><div className="inline-flex items-center gap-2.5 mb-2"><div className="w-10 h-10 bg-indigo-500 rounded-2xl flex items-center justify-center"><BarChart2 size={20} className="text-white"/></div><span className="text-white font-extrabold text-2xl tracking-tight">ProSync</span></div><p className="text-slate-400 text-sm mt-1">프로젝트 관리 플랫폼</p></div>
+        <div className="text-center mb-8"><div className="inline-flex items-center gap-2.5"><div className="w-10 h-10 bg-indigo-500 rounded-2xl flex items-center justify-center"><BarChart2 size={20} className="text-white"/></div><span className="text-white font-extrabold text-2xl tracking-tight">Project Manager</span></div></div>
         <div className="bg-white/5 backdrop-blur border border-white/10 rounded-2xl p-7">
           <h2 className="text-white text-xl font-bold mb-5">로그인</h2>
           <div className="space-y-4">
@@ -743,12 +743,6 @@ export default function App(){
             {le&&<p className="text-red-400 text-xs flex items-center gap-1.5"><AlertCircle size={12}/>{le}</p>}
             <button onClick={login} className="w-full bg-indigo-500 hover:bg-indigo-400 text-white rounded-xl py-3.5 font-semibold text-sm">로그인</button>
             <button onClick={()=>{setPage("register");setLE("");}} className="w-full border border-white/10 text-slate-300 hover:text-white rounded-xl py-3 font-semibold text-sm flex items-center justify-center gap-2"><UserPlus size={15}/>회원가입</button>
-          </div>
-          <div className="mt-5 pt-5 border-t border-white/10"><p className="text-slate-400 text-xs text-center mb-3">테스트 계정</p>
-            <div className="grid grid-cols-2 gap-2">
-              <button onClick={()=>setLF({email:"hyun.planb@gmail.com",password:"1234"})} className="text-xs bg-white/5 hover:bg-indigo-500/20 border border-white/10 text-slate-300 hover:text-indigo-300 rounded-xl py-3">👑 마스터</button>
-              <button onClick={()=>setLF({email:"choi@test.com",password:"1234"})} className="text-xs bg-white/5 hover:bg-white/10 border border-white/10 text-slate-300 rounded-xl py-3">👤 최기획</button>
-            </div>
           </div>
         </div>
       </div>

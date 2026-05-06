@@ -673,12 +673,17 @@ export default function App(){
   function canEdit(t){
     if(!me) return false;
     if(me.role==="master") return true;
-    // eslint-disable-next-line eqeqeq
-    if(t.uid==VACANT_ID) return selP&&getMemberIds(selP).some(id=>id==me.id);
-    // eslint-disable-next-line eqeqeq
-    const ok=t.uid==me.id||t.createdBy==me.id;
-    if(!ok) console.log('[canEdit] DENIED',{taskId:t.id,title:t.title,'t.uid':t.uid,'t.uid type':typeof t.uid,'me.id':me.id,'me.id type':typeof me.id,'createdBy':t.createdBy});
-    return ok;
+    const memberIds=selP?getMemberIds(selP):[];
+    const isMember=memberIds.some(id=>id==me.id); // eslint-disable-line eqeqeq
+    // 공석 태스크: 프로젝트 멤버 누구나
+    if(t.uid==VACANT_ID) return isMember; // eslint-disable-line eqeqeq
+    // 담당자이거나 직접 생성한 업무
+    if(t.uid==me.id||t.createdBy==me.id) return true; // eslint-disable-line eqeqeq
+    // 담당자가 프로젝트에서 이미 제거된 경우(교체 후 DB uid 미갱신 등)
+    // → 공석과 동일하게 현재 멤버 누구나 수정 가능
+    const assigneeStillMember=memberIds.some(id=>id==t.uid); // eslint-disable-line eqeqeq
+    if(!assigneeStillMember) return isMember;
+    return false;
   }
   function isMaster(){return me?.role==="master";}
   const navP={me,page,side,setSide,setPage,setModal,logout};

@@ -1479,8 +1479,10 @@ export default function App(){
           <div className="space-y-4">
             <Fl label="업무 제목"><input className={IC} value={editItem.title} onChange={e=>setEditItem({...editItem,title:e.target.value})}/></Fl>
             <Fl label="상태"><div className="flex gap-2">{["예정","진행중","완료"].map(s=><button key={s} onClick={()=>setEditItem({...editItem,status:s})} className={`flex-1 py-2.5 rounded-xl text-xs font-bold border transition-colors ${editItem.status===s?"bg-indigo-500 text-white border-indigo-500":"border-slate-200 text-slate-500 hover:border-indigo-300"}`}>{s}</button>)}</div></Fl>
-            {isMaster()
-              ?<Fl label="담당자"><select className={IC} value={editItem.uid} onChange={e=>setEditItem({...editItem,uid:parseInt(e.target.value)})}>{users.map(u=><option key={u.id} value={u.id}>{u.name}</option>)}</select></Fl>
+            {(isMaster()||editItem.uid==me?.id||editItem.createdBy==me?.id)// eslint-disable-line eqeqeq
+              ?<Fl label="담당자"><select className={IC} value={editItem.uid} onChange={e=>setEditItem({...editItem,uid:parseInt(e.target.value)})}>
+                  {(isMaster()?users:mem).map(u=><option key={u.id} value={u.id}>{u.name}</option>)}
+                </select></Fl>
               :<Fl label="담당자"><p className={IC+" bg-slate-50 text-slate-500"}>{users.find(u=>String(u.id)===String(editItem.uid))?.name||"?"}</p></Fl>
             }
             <div className="bg-indigo-50 rounded-xl p-4 space-y-3">

@@ -19,7 +19,7 @@ const rowToTask = r => ({
 
 const rowToDoc = r => ({
   id: r.id, pid: r.project_id, uid: r.user_id, title: r.title, desc: r.description,
-  files: r.files ?? [], links: r.links ?? [], at: r.document_at,
+  files: r.files ?? [], links: r.links ?? [], at: r.document_at, createdAt: r.created_at ?? '',
 })
 
 export const taskToRow = t => ({

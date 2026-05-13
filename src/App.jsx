@@ -688,7 +688,8 @@ export default function App(){
   }
 
   function doAddDoc(){
-    const d={id:nid(),pid:selP.id,uid:me.id,title:nd.title,desc:nd.desc,files:nd.files,links:nd.link?[nd.link]:[],at:new Date().toISOString().split("T")[0]};
+    const _now=new Date(),at=`${_now.getFullYear()}-${String(_now.getMonth()+1).padStart(2,'0')}-${String(_now.getDate()).padStart(2,'0')}`;
+    const d={id:nid(),pid:selP.id,uid:me.id,title:nd.title,desc:nd.desc,files:nd.files,links:nd.link?[nd.link]:[],at,createdAt:new Date().toISOString()};
     setDocs([...docs,d]);dbAddDoc(d);
     setND({title:"",desc:"",link:"",files:[]});setModal(null);
   }
@@ -1406,7 +1407,7 @@ export default function App(){
                     <div className="flex items-center justify-between mb-3"><h2 className="font-bold text-slate-800">자료실 <span className="text-slate-400 font-normal text-xs ml-1">{pd.length}건</span></h2><button onClick={()=>setModal("addDoc")} className="flex items-center gap-1.5 bg-indigo-500 hover:bg-indigo-600 text-white px-3 py-2.5 rounded-xl text-xs sm:text-sm font-bold"><Plus size={13}/>자료 등록</button></div>
 
                     <div className="space-y-2">
-                      {[...pd].sort((a,b)=>b.at.localeCompare(a.at)).map(d=><div key={d.id} onClick={()=>setSelDoc(d)} className="bg-white rounded-xl border border-slate-100 shadow-sm p-4 flex items-center gap-3 cursor-pointer hover:border-indigo-200 hover:shadow-md active:scale-[0.99] transition-all group"><div className="w-10 h-10 bg-indigo-50 rounded-xl flex items-center justify-center flex-shrink-0 group-hover:bg-indigo-100"><Archive size={16} className="text-indigo-500"/></div><div className="flex-1 min-w-0"><p className="font-bold text-slate-800 text-sm truncate">{d.title}</p><p className="text-slate-400 text-xs mt-0.5">{uN(d.uid)} · {d.at}</p></div><div className="flex items-center gap-2 flex-shrink-0">{d.files.length>0&&<span className="flex items-center gap-1 text-xs text-slate-400 bg-slate-50 px-2 py-1 rounded-lg"><FileText size={10}/>{d.files.length}</span>}{d.links.length>0&&<span className="flex items-center gap-1 text-xs text-blue-400 bg-blue-50 px-2 py-1 rounded-lg"><ExternalLink size={10}/>{d.links.length}</span>}<ChevronRight size={14} className="text-slate-300 group-hover:text-indigo-400"/></div></div>)}
+                      {[...pd].sort((a,b)=>(b.createdAt||b.at).localeCompare(a.createdAt||a.at)).map(d=><div key={d.id} onClick={()=>setSelDoc(d)} className="bg-white rounded-xl border border-slate-100 shadow-sm p-4 flex items-center gap-3 cursor-pointer hover:border-indigo-200 hover:shadow-md active:scale-[0.99] transition-all group"><div className="w-10 h-10 bg-indigo-50 rounded-xl flex items-center justify-center flex-shrink-0 group-hover:bg-indigo-100"><Archive size={16} className="text-indigo-500"/></div><div className="flex-1 min-w-0"><p className="font-bold text-slate-800 text-sm truncate">{d.title}</p><p className="text-slate-400 text-xs mt-0.5">{uN(d.uid)} · {d.at}</p></div><div className="flex items-center gap-2 flex-shrink-0">{d.files.length>0&&<span className="flex items-center gap-1 text-xs text-slate-400 bg-slate-50 px-2 py-1 rounded-lg"><FileText size={10}/>{d.files.length}</span>}{d.links.length>0&&<span className="flex items-center gap-1 text-xs text-blue-400 bg-blue-50 px-2 py-1 rounded-lg"><ExternalLink size={10}/>{d.links.length}</span>}<ChevronRight size={14} className="text-slate-300 group-hover:text-indigo-400"/></div></div>)}
                       {pd.length===0&&<div className="text-center py-12 text-slate-300"><Archive size={32} className="mx-auto mb-3"/><p className="text-sm">등록된 자료가 없어요</p></div>}
                     </div>
                   </>

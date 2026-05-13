@@ -121,6 +121,10 @@ export const dbAddDoc = d => sync(supabase.from('documents').insert([{
   id: d.id, project_id: d.pid, user_id: d.uid, title: d.title,
   description: d.desc ?? null, files: d.files, links: d.links, document_at: d.at,
 }]))
+export const dbUpdateDoc = d => sync(supabase.from('documents').upsert({
+  id: d.id, project_id: d.pid, user_id: d.uid, title: d.title,
+  description: d.desc ?? null, files: d.files, links: d.links, document_at: d.at,
+}))
 export const dbDeleteDoc = id => sync(supabase.from('documents').delete().eq('id', id))
 
 // ─── first-run seed ──────────────────────────────────────────

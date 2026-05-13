@@ -5,7 +5,7 @@ import {
   dbLogin, dbRegister,
   dbAddProject, dbUpdateProject, dbDeleteProject,
   dbAddTask, dbAddTasks, dbUpdateTask, dbDeleteTask, dbDeleteTasks, dbDeleteProjectTasksNotManual,
-  dbAddDoc, dbDeleteDoc, taskToRow,
+  dbAddDoc, dbUpdateDoc, dbDeleteDoc, taskToRow,
 } from "./lib/db.js";
 import {
   LayoutDashboard, FolderOpen, TrendingUp, Archive, Users, LogOut,
@@ -691,6 +691,14 @@ export default function App(){
     const d={id:nid(),pid:selP.id,uid:me.id,title:nd.title,desc:nd.desc,files:nd.files,links:nd.link?[nd.link]:[],at:new Date().toISOString().split("T")[0]};
     setDocs([...docs,d]);dbAddDoc(d);
     setND({title:"",desc:"",link:"",files:[]});setModal(null);
+  }
+  function doEditDoc(){
+    if(!editItem)return;
+    const updated={...editItem,title:nd.title,desc:nd.desc,files:nd.files,links:nd.link?[nd.link]:[]};
+    setDocs(docs.map(d=>d.id===updated.id?updated:d));
+    setSelDoc(updated);
+    dbUpdateDoc(updated);
+    setND({title:"",desc:"",link:"",files:[]});setEditItem(null);setModal(null);
   }
   function handleFiles(e){const MAX=50*1024*1024,picked=Array.from(e.target.files);Promise.all(picked.filter(f=>f.size<=MAX).map(f=>new Promise(res=>{const r=new FileReader();r.onload=ev=>res({name:f.name,size:(f.size/1024/1024).toFixed(1)+"MB",dataUrl:ev.target.result});r.readAsDataURL(f);})))
     .then(files=>setND({...nd,files:[...nd.files,...files]}));e.target.value="";}
@@ -1398,13 +1406,13 @@ export default function App(){
                     <div className="flex items-center justify-between mb-3"><h2 className="font-bold text-slate-800">자료실 <span className="text-slate-400 font-normal text-xs ml-1">{pd.length}건</span></h2><button onClick={()=>setModal("addDoc")} className="flex items-center gap-1.5 bg-indigo-500 hover:bg-indigo-600 text-white px-3 py-2.5 rounded-xl text-xs sm:text-sm font-bold"><Plus size={13}/>자료 등록</button></div>
 
                     <div className="space-y-2">
-                      {pd.map(d=><div key={d.id} onClick={()=>setSelDoc(d)} className="bg-white rounded-xl border border-slate-100 shadow-sm p-4 flex items-center gap-3 cursor-pointer hover:border-indigo-200 hover:shadow-md active:scale-[0.99] transition-all group"><div className="w-10 h-10 bg-indigo-50 rounded-xl flex items-center justify-center flex-shrink-0 group-hover:bg-indigo-100"><Archive size={16} className="text-indigo-500"/></div><div className="flex-1 min-w-0"><p className="font-bold text-slate-800 text-sm truncate">{d.title}</p><p className="text-slate-400 text-xs mt-0.5">{uN(d.uid)} · {d.at}</p></div><div className="flex items-center gap-2 flex-shrink-0">{d.files.length>0&&<span className="flex items-center gap-1 text-xs text-slate-400 bg-slate-50 px-2 py-1 rounded-lg"><FileText size={10}/>{d.files.length}</span>}{d.links.length>0&&<span className="flex items-center gap-1 text-xs text-blue-400 bg-blue-50 px-2 py-1 rounded-lg"><ExternalLink size={10}/>{d.links.length}</span>}<ChevronRight size={14} className="text-slate-300 group-hover:text-indigo-400"/></div></div>)}
+                      {[...pd].sort((a,b)=>b.at.localeCompare(a.at)).map(d=><div key={d.id} onClick={()=>setSelDoc(d)} className="bg-white rounded-xl border border-slate-100 shadow-sm p-4 flex items-center gap-3 cursor-pointer hover:border-indigo-200 hover:shadow-md active:scale-[0.99] transition-all group"><div className="w-10 h-10 bg-indigo-50 rounded-xl flex items-center justify-center flex-shrink-0 group-hover:bg-indigo-100"><Archive size={16} className="text-indigo-500"/></div><div className="flex-1 min-w-0"><p className="font-bold text-slate-800 text-sm truncate">{d.title}</p><p className="text-slate-400 text-xs mt-0.5">{uN(d.uid)} · {d.at}</p></div><div className="flex items-center gap-2 flex-shrink-0">{d.files.length>0&&<span className="flex items-center gap-1 text-xs text-slate-400 bg-slate-50 px-2 py-1 rounded-lg"><FileText size={10}/>{d.files.length}</span>}{d.links.length>0&&<span className="flex items-center gap-1 text-xs text-blue-400 bg-blue-50 px-2 py-1 rounded-lg"><ExternalLink size={10}/>{d.links.length}</span>}<ChevronRight size={14} className="text-slate-300 group-hover:text-indigo-400"/></div></div>)}
                       {pd.length===0&&<div className="text-center py-12 text-slate-300"><Archive size={32} className="mx-auto mb-3"/><p className="text-sm">등록된 자료가 없어요</p></div>}
                     </div>
                   </>
                 ):(
                   <div>
-                    <div className="flex items-center gap-2 mb-4"><button onClick={()=>setSelDoc(null)} className="w-8 h-8 flex items-center justify-center text-slate-500 hover:bg-slate-100 rounded-xl flex-shrink-0"><ArrowLeft size={16}/></button><h2 className="font-bold text-slate-800 flex-1 truncate">{selDoc.title}</h2>{(isMaster()||String(selDoc.uid)===String(me?.id))&&<button onClick={()=>{setDocs(docs.filter(x=>x.id!==selDoc.id));dbDeleteDoc(selDoc.id);setSelDoc(null);}} className="w-8 h-8 flex items-center justify-center text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-xl"><Trash2 size={14}/></button>}<button className="w-8 h-8 flex items-center justify-center text-slate-300 hover:text-indigo-500 hover:bg-indigo-50 rounded-xl"><Share2 size={14}/></button></div>
+                    <div className="flex items-center gap-2 mb-4"><button onClick={()=>setSelDoc(null)} className="w-8 h-8 flex items-center justify-center text-slate-500 hover:bg-slate-100 rounded-xl flex-shrink-0"><ArrowLeft size={16}/></button><h2 className="font-bold text-slate-800 flex-1 truncate">{selDoc.title}</h2>{(isMaster()||String(selDoc.uid)===String(me?.id))&&<button onClick={()=>{setEditItem(selDoc);setND({title:selDoc.title,desc:selDoc.desc||"",files:selDoc.files,link:selDoc.links[0]||""});setModal("editDoc");}} className="w-8 h-8 flex items-center justify-center text-slate-300 hover:text-indigo-500 hover:bg-indigo-50 rounded-xl"><Edit2 size={14}/></button>}{(isMaster()||String(selDoc.uid)===String(me?.id))&&<button onClick={()=>{setDocs(docs.filter(x=>x.id!==selDoc.id));dbDeleteDoc(selDoc.id);setSelDoc(null);}} className="w-8 h-8 flex items-center justify-center text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-xl"><Trash2 size={14}/></button>}<button className="w-8 h-8 flex items-center justify-center text-slate-300 hover:text-indigo-500 hover:bg-indigo-50 rounded-xl"><Share2 size={14}/></button></div>
                     <div className="bg-white rounded-xl sm:rounded-2xl border border-slate-100 shadow-sm p-5">
                       <div className="flex items-center gap-2.5 mb-4 pb-4 border-b border-slate-100"><Av n={uN(selDoc.uid)} sz="w-9 h-9"/><div><p className="font-semibold text-slate-800 text-sm">{uN(selDoc.uid)}</p><p className="text-slate-400 text-xs">{selDoc.at} 등록</p></div></div>
                       {selDoc.desc&&<div className="mb-5"><p className="text-xs font-bold text-slate-500 mb-2">내용</p><p className="text-sm text-slate-700 leading-relaxed">{selDoc.desc}</p></div>}
@@ -1553,6 +1561,22 @@ export default function App(){
             <Fl label="링크 (선택)"><input className={IC} placeholder="https://..." value={nd.link} onChange={e=>setND({...nd,link:e.target.value})}/></Fl>
           </div>
           <div className="flex gap-3 mt-5"><BtnGhost onClick={()=>setModal(null)} className="flex-1">취소</BtnGhost><BtnPrimary onClick={doAddDoc} className="flex-1">등록</BtnPrimary></div>
+        </Sheet>}
+
+        {/* ══ 모달: 자료 수정 ══ */}
+        {modal==="editDoc"&&editItem&&<Sheet title="자료 수정" onClose={()=>{setModal(null);setEditItem(null);setND({title:"",desc:"",link:"",files:[]});}}>
+          <div className="space-y-4">
+            <Fl label="제목"><input className={IC} placeholder="자료 제목" value={nd.title} onChange={e=>setND({...nd,title:e.target.value})}/></Fl>
+            <Fl label="설명"><textarea className={IC+" resize-none"} rows={2} placeholder="자료 설명" value={nd.desc} onChange={e=>setND({...nd,desc:e.target.value})}/></Fl>
+            <Fl label="파일 첨부">
+              <label className="block cursor-pointer"><input type="file" multiple className="hidden" onChange={handleFiles}/>
+                <div className="border-2 border-dashed border-slate-200 rounded-xl p-5 text-center hover:border-indigo-300"><Upload size={18} className="text-slate-300 mx-auto mb-1.5"/><p className="text-slate-400 text-xs font-semibold">파일 추가 선택</p></div>
+              </label>
+              {nd.files.length>0&&<div className="mt-2 space-y-1.5">{nd.files.map((f,i)=><div key={i} className="flex items-center gap-2 bg-slate-50 rounded-lg px-3 py-2"><FileText size={13} className="text-indigo-400 flex-shrink-0"/><span className="text-xs text-slate-700 flex-1 truncate">{f.name}</span><button onClick={()=>setND({...nd,files:nd.files.filter((_,j)=>j!==i)})} className="text-slate-300 hover:text-red-500"><X size={13}/></button></div>)}</div>}
+            </Fl>
+            <Fl label="링크 (선택)"><input className={IC} placeholder="https://..." value={nd.link} onChange={e=>setND({...nd,link:e.target.value})}/></Fl>
+          </div>
+          <div className="flex gap-3 mt-5"><BtnGhost onClick={()=>{setModal(null);setEditItem(null);setND({title:"",desc:"",link:"",files:[]});}} className="flex-1">취소</BtnGhost><BtnPrimary onClick={doEditDoc} className="flex-1">저장</BtnPrimary></div>
         </Sheet>}
 
         {/* ══ 멤버 관리 모달 ══ */}
